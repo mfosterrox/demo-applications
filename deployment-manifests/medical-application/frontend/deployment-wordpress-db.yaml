@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress-db
+  namespace: frontend
+  labels:
+    app: wordpress-db
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wordpress-db
+  template:
+    metadata:
+      labels:
+        app: wordpress-db
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: mariadb
+          image: quay.io/mariadb/mariadb:10
+          ports:
+            - containerPort: 3306
+              name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "rootpassword"
+            - name: MYSQL_DATABASE
+              value: "wordpress"
+            - name: MYSQL_USER
+              value: "wordpress"
+            - name: MYSQL_PASSWORD
+              value: "wordpress"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: mariadb-data
+              mountPath: /var/lib/mysql
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+      volumes:
+        - name: mariadb-data
+          emptyDir: {}
+

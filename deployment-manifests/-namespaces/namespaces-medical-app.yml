@@ -1,0 +1,59 @@
+# Namespace for operations
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: operations
+  labels:
+    name: operations
+    demo: roadshow
+    repo: demo-apps
+---
+# Namespace for backend
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backend
+  labels:
+    name: backend
+    demo: roadshow
+    repo: demo-apps
+---
+# Namespace for frontend
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend
+  labels:
+    name: frontend
+    demo: roadshow
+    repo: demo-apps
+---
+    # Namespace for medical
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medical
+  labels:
+    name: medical
+    demo: roadshow
+    repo: demo-apps
+---
+# Namespace for payments
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+  labels:
+    name: payments
+    demo: roadshow
+    repo: demo-apps
+---
+# Namespace for yelb app
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pipeline-demo
+  labels:
+    name: pipeline-demo
+    demo: roadshow
+    repo: demo-apps

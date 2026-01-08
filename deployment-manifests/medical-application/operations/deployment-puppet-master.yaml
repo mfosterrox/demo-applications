@@ -1,0 +1,45 @@
+# Deployment named "puppet-master"
+# Listens on :8140
+# Runs apt-get
+# Runs nmap (note: network scanning capabilities limited due to SCC restrictions)
+# Note: Host Docker socket mount removed due to SCC restrictions
+# Note: Privileged mode removed due to SCC restrictions
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: puppet-master
+  namespace: operations
+  labels:
+    app: puppet-master
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+       app: puppet-master
+  template:
+    metadata:
+     labels:
+       app: puppet-master
+       demo: roadshow
+       repo: demo-apps
+    spec:
+      imagePullSecrets:
+      - name: rhacs-demo-pull-pull-secret
+      containers:
+      - image: quay.io/rhacs-demo/netflow:latest
+        command: ["/bin/sh"]
+        args: ["-c", "/usr/bin/apt-get install nmap; /bin/nmap -Pn 10.0.0.0/24; /bin/entrypoint -listen 8140"]
+        imagePullPolicy: Always
+        name: puppet-master
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+        ports:
+        - containerPort: 8140
+          protocol: TCP
+

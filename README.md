@@ -1,1 +1,1 @@
-# demo-applications
+# demo-apps

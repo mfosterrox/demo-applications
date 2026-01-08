@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-goof-vuln-main
+  namespace: nodejs-goof-vuln-main
+  labels:
+    app: nodejs-goof-vuln-main
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodejs-goof-vuln-main
+  template:
+    metadata:
+      labels:
+        app: nodejs-goof-vuln-main
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      initContainers:
+        - name: fix-npm-permissions
+          image: quay.io/mfoster/nodejs-goof-vuln-main:0.1.0
+          command: ['sh', '-c']
+          args:
+            - |
+              mkdir -p /tmp/npm-cache
+              mkdir -p /.npm
+              # Permissions are handled by OpenShift's security context
+              # emptyDir volumes are writable by the assigned user
+          securityContext:
+            runAsNonRoot: true
+          volumeMounts:
+            - name: npm-cache
+              mountPath: /tmp/npm-cache
+            - name: npm-root-cache
+              mountPath: /.npm
+      containers:
+        - name: nodejs-goof-vuln-main
+          image: quay.io/mfoster/nodejs-goof-vuln-main:0.1.0
+          ports:
+            - containerPort: 3001
+              name: http
+            - containerPort: 9229
+              name: debug
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: PORT
+              value: "3001"
+            - name: MONGODB_URI
+              value: "mongodb://mongodb:27017/goof"
+            - name: npm_config_cache
+              value: "/tmp/npm-cache"
+            - name: NPM_CONFIG_CACHE
+              value: "/tmp/npm-cache"
+            - name: HOME
+              value: "/tmp"
+          volumeMounts:
+            - name: npm-cache
+              mountPath: /tmp/npm-cache
+            - name: npm-root-cache
+              mountPath: /.npm
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+      volumes:
+        - name: npm-cache
+          emptyDir: {}
+        - name: npm-root-cache
+          emptyDir: {}
+

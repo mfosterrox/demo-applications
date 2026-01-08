@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: juice-shop
+  namespace: juice-shop
+  labels:
+    app: juice-shop
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: juice-shop
+  template:
+    metadata:
+      labels:
+        app: juice-shop
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      initContainers:
+        - name: setup-permissions
+          image: busybox:latest
+          command: ['sh', '-c']
+          args:
+            - |
+              mkdir -p /well-known/csaf
+              touch /well-known/csaf/provider-metadata.json
+              chown -R $(id -u):$(id -g) /well-known || true
+              chmod -R 777 /well-known
+              echo "Directory structure created:"
+              ls -laR /well-known || true
+          volumeMounts:
+            - name: well-known-data
+              mountPath: /well-known
+          securityContext:
+            runAsNonRoot: true
+      containers:
+        - name: juice-shop
+          image: bkimminich/juice-shop
+          ports:
+            - containerPort: 3000
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          env:
+            - name: NODE_ENV
+              value: "production"
+          volumeMounts:
+            - name: well-known-data
+              mountPath: /juice-shop/.well-known
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+      volumes:
+        - name: well-known-data
+          emptyDir: {}
+

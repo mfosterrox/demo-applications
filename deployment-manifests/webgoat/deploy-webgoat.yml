@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: webgoat
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webgoat
+  namespace: webgoat
+  labels:
+    app: webgoat
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webgoat
+  template:
+    metadata:
+      labels:
+        app: webgoat
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+      - name: webgoat
+        image: quay.io/mfoster/webgoat:0.1.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: WEBGOAT_PORT
+          value: "8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webgoat
+  namespace: webgoat
+  labels:
+    app: webgoat
+    demo: roadshow
+    repo: demo-apps
+spec:
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: webgoat
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: webgoat
+  namespace: webgoat
+  labels:
+    app: webgoat
+    demo: roadshow
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: webgoat
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webgoat-config
+  namespace: webgoat
+  labels:
+    app: webgoat
+    demo: roadshow
+    repo: demo-apps
+data:
+  WEBGOAT_PORT: "8080"
+---

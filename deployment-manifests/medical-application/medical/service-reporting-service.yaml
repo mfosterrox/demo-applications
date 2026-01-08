@@ -1,0 +1,21 @@
+# Service named "reporting-service"
+# Listens on :8080
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: reporting
+    demo: roadshow
+    repo: demo-apps
+  name: reporting-service
+  namespace: medical
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+    name: http
+  selector:
+    app: reporting
+  type: ClusterIP
+

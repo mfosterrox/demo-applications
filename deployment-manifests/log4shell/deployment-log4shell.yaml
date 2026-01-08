@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log4shell
+  namespace: log4shell
+  labels:
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log4shell
+  template:
+    metadata:
+      labels:
+        app: log4shell
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+      - name: log4shell
+        image: quay.io/mfoster/log4shell:0.1.0
+        securityContext:
+          allowPrivilegeEscalation: false
+          readonlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
