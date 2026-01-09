@@ -501,3 +501,282 @@ push:
 		echo "========================================================="; \
 		exit 1; \
 	fi
+
+# Podman Compose targets
+PODMAN_APPS := apache-struts dvwa dvwa-hummingbird juice-shop log4shell nodejs-goof-vuln-main skupper-demo skupper-demo-hummingbird web-ctf-container webgoat
+PODMAN_MANIFEST_DIR := podman-manifests
+
+podman-up:
+	@if [ -z "$(APP)" ]; then \
+		echo "========================================================="; \
+		echo "Starting all Podman Compose applications..."; \
+		echo "========================================================="; \
+		SUCCESSFUL_STARTS=""; \
+		FAILED_STARTS=""; \
+		SKIPPED_STARTS=""; \
+		TOTAL=0; \
+		SUCCESS=0; \
+		FAILED=0; \
+		SKIPPED=0; \
+		for app in $(PODMAN_APPS); do \
+			TOTAL=$$((TOTAL + 1)); \
+		done; \
+		TOTAL_COUNT=$$TOTAL; \
+		TOTAL=0; \
+		for app in $(PODMAN_APPS); do \
+			TOTAL=$$((TOTAL + 1)); \
+			COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/compose.yml"; \
+			if [ ! -f "$$COMPOSE_FILE" ] && [ ! -f "$(PODMAN_MANIFEST_DIR)/$${app}/podman-compose.yml" ]; then \
+				SKIPPED=$$((SKIPPED + 1)); \
+				SKIPPED_STARTS="$$SKIPPED_STARTS $$app"; \
+				echo "⊘ Skipping $$app ($$TOTAL/$$TOTAL_COUNT) - compose file not found"; \
+				echo "  File: $$COMPOSE_FILE"; \
+			else \
+				echo ""; \
+				echo "Starting $$app ($$TOTAL/$$TOTAL_COUNT)..."; \
+				if [ ! -f "$$COMPOSE_FILE" ]; then \
+					COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/podman-compose.yml"; \
+				fi; \
+				COMPOSE_FILE_NAME=$$(basename "$$COMPOSE_FILE"); \
+				echo "  Compose file: $$COMPOSE_FILE"; \
+				if ( cd "$(PODMAN_MANIFEST_DIR)/$${app}" && COMPOSE_PROJECT_NAME=$${app} podman compose -f "$$COMPOSE_FILE_NAME" up -d ); then \
+					SUCCESS=$$((SUCCESS + 1)); \
+					SUCCESSFUL_STARTS="$$SUCCESSFUL_STARTS $$app"; \
+					echo "  ✓ Successfully started $$app"; \
+				else \
+					FAILED=$$((FAILED + 1)); \
+					FAILED_STARTS="$$FAILED_STARTS $$app"; \
+					echo "  ✗ Failed to start $$app"; \
+				fi; \
+			fi; \
+		done; \
+		echo ""; \
+		echo "========================================================="; \
+		echo "Podman Compose Start Summary"; \
+		echo "========================================================="; \
+		echo "Total applications: $$TOTAL_COUNT"; \
+		echo "Successful starts: $$SUCCESS"; \
+		echo "Skipped (file missing): $$SKIPPED"; \
+		echo "Failed starts: $$FAILED"; \
+		echo ""; \
+		if [ -n "$$SUCCESSFUL_STARTS" ]; then \
+			echo "✓ Successfully started:"; \
+			for app in $$SUCCESSFUL_STARTS; do \
+				echo "  - $$app"; \
+			done; \
+			echo ""; \
+		fi; \
+		if [ -n "$$SKIPPED_STARTS" ]; then \
+			echo "⊘ Skipped (file missing):"; \
+			for app in $$SKIPPED_STARTS; do \
+				echo "  - $$app"; \
+			done; \
+			echo ""; \
+		fi; \
+		if [ -n "$$FAILED_STARTS" ]; then \
+			echo "✗ Failed starts:"; \
+			for app in $$FAILED_STARTS; do \
+				echo "  - $$app"; \
+			done; \
+			echo ""; \
+		fi; \
+		echo "========================================================="; \
+		if [ $$FAILED -gt 0 ]; then \
+			echo "Some applications failed to start."; \
+			exit 1; \
+		else \
+			echo "All applications started successfully!"; \
+		fi; \
+	else \
+		APP_NAME="$(APP)"; \
+		COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/compose.yml"; \
+		if [ ! -f "$$COMPOSE_FILE" ] && [ ! -f "$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml" ]; then \
+			echo "Error: Compose file not found for application '$$APP_NAME'"; \
+			echo "  Expected: $$COMPOSE_FILE or $(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml"; \
+			echo ""; \
+			echo "Available applications:"; \
+			for app in $(PODMAN_APPS); do \
+				echo "  - $$app"; \
+			done; \
+			exit 1; \
+		fi; \
+		if [ ! -f "$$COMPOSE_FILE" ]; then \
+			COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml"; \
+		fi; \
+		COMPOSE_FILE_NAME=$$(basename "$$COMPOSE_FILE"); \
+		echo "========================================================="; \
+		echo "Starting Podman Compose application: $$APP_NAME"; \
+		echo "========================================================="; \
+		echo "Compose file: $$COMPOSE_FILE"; \
+		if ( cd "$(PODMAN_MANIFEST_DIR)/$${APP_NAME}" && COMPOSE_PROJECT_NAME=$${APP_NAME} podman compose -f "$$COMPOSE_FILE_NAME" up -d ); then \
+			echo ""; \
+			echo "========================================================="; \
+			echo "✓ Successfully started $$APP_NAME"; \
+			echo "========================================================="; \
+		else \
+			echo ""; \
+			echo "========================================================="; \
+			echo "✗ Failed to start $$APP_NAME"; \
+			echo "========================================================="; \
+			exit 1; \
+		fi; \
+	fi
+
+podman-down:
+	@if [ -z "$(APP)" ]; then \
+		echo "========================================================="; \
+		echo "Stopping all Podman Compose applications..."; \
+		echo "========================================================="; \
+		SUCCESSFUL_STOPS=""; \
+		FAILED_STOPS=""; \
+		SKIPPED_STOPS=""; \
+		TOTAL=0; \
+		SUCCESS=0; \
+		FAILED=0; \
+		SKIPPED=0; \
+		for app in $(PODMAN_APPS); do \
+			TOTAL=$$((TOTAL + 1)); \
+		done; \
+		TOTAL_COUNT=$$TOTAL; \
+		TOTAL=0; \
+		for app in $(PODMAN_APPS); do \
+			TOTAL=$$((TOTAL + 1)); \
+			COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/compose.yml"; \
+			if [ ! -f "$$COMPOSE_FILE" ] && [ ! -f "$(PODMAN_MANIFEST_DIR)/$${app}/podman-compose.yml" ]; then \
+				SKIPPED=$$((SKIPPED + 1)); \
+				SKIPPED_STOPS="$$SKIPPED_STOPS $$app"; \
+				echo "⊘ Skipping $$app ($$TOTAL/$$TOTAL_COUNT) - compose file not found"; \
+			else \
+				echo ""; \
+				echo "Stopping $$app ($$TOTAL/$$TOTAL_COUNT)..."; \
+				COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/compose.yml"; \
+				if [ ! -f "$$COMPOSE_FILE" ]; then \
+					COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/podman-compose.yml"; \
+				fi; \
+				COMPOSE_FILE_NAME=$$(basename "$$COMPOSE_FILE"); \
+				if ( cd "$(PODMAN_MANIFEST_DIR)/$${app}" && podman compose -f "$$COMPOSE_FILE_NAME" down ); then \
+					SUCCESS=$$((SUCCESS + 1)); \
+					SUCCESSFUL_STOPS="$$SUCCESSFUL_STOPS $$app"; \
+					echo "  ✓ Successfully stopped $$app"; \
+				else \
+					FAILED=$$((FAILED + 1)); \
+					FAILED_STOPS="$$FAILED_STOPS $$app"; \
+					echo "  ✗ Failed to stop $$app"; \
+				fi; \
+			fi; \
+		done; \
+		echo ""; \
+		echo "========================================================="; \
+		echo "Podman Compose Stop Summary"; \
+		echo "========================================================="; \
+		echo "Total applications: $$TOTAL_COUNT"; \
+		echo "Successful stops: $$SUCCESS"; \
+		echo "Skipped (file missing): $$SKIPPED"; \
+		echo "Failed stops: $$FAILED"; \
+		echo ""; \
+		if [ -n "$$SUCCESSFUL_STOPS" ]; then \
+			echo "✓ Successfully stopped:"; \
+			for app in $$SUCCESSFUL_STOPS; do \
+				echo "  - $$app"; \
+			done; \
+			echo ""; \
+		fi; \
+		if [ -n "$$SKIPPED_STOPS" ]; then \
+			echo "⊘ Skipped (file missing):"; \
+			for app in $$SKIPPED_STOPS; do \
+				echo "  - $$app"; \
+			done; \
+			echo ""; \
+		fi; \
+		if [ -n "$$FAILED_STOPS" ]; then \
+			echo "✗ Failed stops:"; \
+			for app in $$FAILED_STOPS; do \
+				echo "  - $$app"; \
+			done; \
+			echo ""; \
+		fi; \
+		echo "========================================================="; \
+		if [ $$FAILED -gt 0 ]; then \
+			echo "Some applications failed to stop."; \
+			exit 1; \
+		else \
+			echo "All applications stopped successfully!"; \
+		fi; \
+	else \
+		APP_NAME="$(APP)"; \
+		COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/compose.yml"; \
+		if [ ! -f "$$COMPOSE_FILE" ]; then \
+			echo "Error: Compose file not found for application '$$APP_NAME'"; \
+			echo "  Expected: $$COMPOSE_FILE"; \
+			echo ""; \
+			echo "Available applications:"; \
+			for app in $(PODMAN_APPS); do \
+				echo "  - $$app"; \
+			done; \
+			exit 1; \
+		fi; \
+		if [ ! -f "$$COMPOSE_FILE" ]; then \
+			COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml"; \
+		fi; \
+		COMPOSE_FILE_NAME=$$(basename "$$COMPOSE_FILE"); \
+		echo "========================================================="; \
+		echo "Stopping Podman Compose application: $$APP_NAME"; \
+		echo "========================================================="; \
+		echo "Compose file: $$COMPOSE_FILE"; \
+		if ( cd "$(PODMAN_MANIFEST_DIR)/$${APP_NAME}" && podman compose -f "$$COMPOSE_FILE_NAME" down ); then \
+			echo ""; \
+			echo "========================================================="; \
+			echo "✓ Successfully stopped $$APP_NAME"; \
+			echo "========================================================="; \
+		else \
+			echo ""; \
+			echo "========================================================="; \
+			echo "✗ Failed to stop $$APP_NAME"; \
+			echo "========================================================="; \
+			exit 1; \
+		fi; \
+	fi
+
+podman-logs:
+	@if [ -z "$(APP)" ]; then \
+		echo "Error: Please specify an APP to view logs (e.g., make podman-logs APP=apache-struts)."; \
+		echo ""; \
+		echo "Available applications:"; \
+		for app in $(PODMAN_APPS); do \
+			echo "  - $$app"; \
+		done; \
+		exit 1; \
+	fi
+	@APP_NAME="$(APP)"; \
+	COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/compose.yml"; \
+	if [ ! -f "$$COMPOSE_FILE" ] && [ ! -f "$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml" ]; then \
+		echo "Error: Compose file not found for application '$$APP_NAME'"; \
+		echo "  Expected: $$COMPOSE_FILE or $(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml"; \
+		exit 1; \
+	fi; \
+	if [ ! -f "$$COMPOSE_FILE" ]; then \
+		COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${APP_NAME}/podman-compose.yml"; \
+	fi; \
+	COMPOSE_FILE_NAME=$$(basename "$$COMPOSE_FILE"); \
+	cd "$(PODMAN_MANIFEST_DIR)/$${APP_NAME}" && podman compose -f "$$COMPOSE_FILE_NAME" logs -f
+
+podman-ps:
+	@echo "========================================================="
+	@echo "Podman Compose Status"
+	@echo "========================================================="
+	@for app in $(PODMAN_APPS); do \
+		COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/compose.yml"; \
+		if [ -f "$$COMPOSE_FILE" ]; then \
+			echo ""; \
+			echo "Application: $$app"; \
+			echo "----------------------------------------"; \
+			COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/compose.yml"; \
+			if [ ! -f "$$COMPOSE_FILE" ]; then \
+				COMPOSE_FILE="$(PODMAN_MANIFEST_DIR)/$${app}/podman-compose.yml"; \
+			fi; \
+			COMPOSE_FILE_NAME=$$(basename "$$COMPOSE_FILE"); \
+			( cd "$(PODMAN_MANIFEST_DIR)/$${app}" && podman compose -f "$$COMPOSE_FILE_NAME" ps ) || echo "  No containers running"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "========================================================="
