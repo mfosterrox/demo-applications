@@ -23,7 +23,7 @@ spec:
         image: quay.io/mfoster/log4shell:0.1.0
         securityContext:
           allowPrivilegeEscalation: false
-          readonlyRootFilesystem: true
+          readOnlyRootFilesystem: true
           capabilities:
             drop:
               - ALL
