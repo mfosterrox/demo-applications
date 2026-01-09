@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: mariadb
-          image: quay.io/mariadb/mariadb:10
+          image: mariadb:10
           ports:
             - containerPort: 3306
               name: mysql

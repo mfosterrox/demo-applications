@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: quay.io/mariadb/mariadb:10
+    image: mariadb:10
     environment:
       - MYSQL_ROOT_PASSWORD=dvwa
       - MYSQL_DATABASE=dvwa
