@@ -23,12 +23,24 @@ spec:
       labels:
         app: database
     spec:
+      securityContext:
+        fsGroup: 0
       containers:
         - name: database
           image: quay.io/mfoster/patient-portal-database:0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /pgdata
+            - name: postgres-run
+              mountPath: /var/run/postgresql
+      volumes:
+        - name: postgres-data
+          emptyDir: {}
+        - name: postgres-run
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

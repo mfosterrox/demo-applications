@@ -27,11 +27,11 @@ ENV POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
 COPY data.sql /docker-entrypoint-initdb.d/data.sql
 COPY --chmod=755 entrypoint-wrapper.sh /entrypoint-wrapper.sh
 
-# Create pgdata directory as root with proper permissions for OpenShift
+# Create pgdata and postgresql run directories as root with proper permissions for OpenShift
 USER root
-RUN mkdir -p /pgdata/data && \
-    chgrp -R root /pgdata && \
-    chmod -R g+rwX /pgdata
+RUN mkdir -p /pgdata/data /var/run/postgresql && \
+    chgrp -R root /pgdata /var/run/postgresql && \
+    chmod -R g+rwX /pgdata /var/run/postgresql
 
 # Set PGDATA
 ENV PGDATA=/pgdata/data
