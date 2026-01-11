@@ -7,6 +7,14 @@ A collection of vulnerable demo applications for security testing and educationa
 - Kubernetes cluster access (kubectl configured)
 - Appropriate permissions to create namespaces, deployments, services, routes, etc.
 
+## Quick Deploy
+
+Clone the repository and deploy all applications in one command:
+
+```bash
+git clone https://github.com/mfosterrox/demo-applications.git && cd demo-applications && kubectl apply -R -f k8s-deployment-manifests/
+```
+
 ## Quick Start - Deploy All Applications
 
 Deploy all namespaces first, then all application manifests:
@@ -23,74 +31,6 @@ Or deploy everything in one command (namespaces will be created automatically):
 
 ```bash
 kubectl apply -R -f k8s-deployment-manifests/
-```
-
-## Deploy Individual Applications
-
-### Apache Struts
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-apache-struts.yaml
-kubectl apply -f k8s-deployment-manifests/apache-struts/
-```
-
-### DVWA (Damn Vulnerable Web Application)
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-dvwa.yaml
-kubectl apply -f k8s-deployment-manifests/dvwa/
-```
-
-### DVWA Hummingbird
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-dvwa.yaml
-kubectl apply -f k8s-deployment-manifests/dvwa-hummingbird/
-```
-
-### Juice Shop
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-juice-shop.yaml
-kubectl apply -f k8s-deployment-manifests/juice-shop/
-```
-
-### Log4Shell
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-log4shell.yaml
-kubectl apply -f k8s-deployment-manifests/log4shell/
-```
-
-### Medical Application (Patient Portal)
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespaces-medical-app.yml
-kubectl apply -f k8s-deployment-manifests/medical-application/
-```
-
-### Node.js Goof (Vulnerable)
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-nodejs-goof-vuln-main.yaml
-kubectl apply -f k8s-deployment-manifests/nodejs-goof-vuln-main/
-```
-
-### Skupper Demo
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-unprotected-api-server.yaml
-kubectl apply -f k8s-deployment-manifests/skupper-demo/
-```
-
-### Skupper Demo Hummingbird
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-unprotected-api-server.yaml
-kubectl apply -f k8s-deployment-manifests/skupper-demo-hummingbird/
-```
-
-### Web CTF Container
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-web-ctf-container.yaml
-kubectl apply -f k8s-deployment-manifests/web-ctf-container/
-```
-
-### WebGoat
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-webgoat.yaml
-kubectl apply -f k8s-deployment-manifests/webgoat/
 ```
 
 ## Verify Deployments
