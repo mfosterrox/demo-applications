@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: currencyservice
+  namespace: grpc-a
+  labels:
+    app: currencyservice
+    demo: roadshow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: currencyservice
+  template:
+    metadata:
+      labels:
+        app: currencyservice
+    spec:
+      containers:
+      - name: server
+        image: gcr.io/google-samples/microservices-demo/currencyservice:v0.9.1
+        ports:
+        - containerPort: 7000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: currencyservice
+  namespace: grpc-a
+  labels:
+    app: currencyservice
+spec:
+  type: ClusterIP
+  ports:
+  - port: 7000
+    targetPort: 7000
+  selector:
+    app: currencyservice

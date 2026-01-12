@@ -1,0 +1,15 @@
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: cartservice
+  namespace: grpc-b
+spec:
+  target: cartservice
+---
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: checkoutservice
+  namespace: grpc-b
+spec:
+  target: checkoutservice

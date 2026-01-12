@@ -1,0 +1,31 @@
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: productcatalogservice
+  namespace: grpc-a
+spec:
+  target: productcatalogservice
+---
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: currencyservice
+  namespace: grpc-a
+spec:
+  target: currencyservice
+---
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: recommendationservice
+  namespace: grpc-a
+spec:
+  target: recommendationservice
+---
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: adservice
+  namespace: grpc-a
+spec:
+  target: adservice

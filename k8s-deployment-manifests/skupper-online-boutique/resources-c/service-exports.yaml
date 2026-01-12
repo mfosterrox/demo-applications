@@ -1,0 +1,23 @@
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: shippingservice
+  namespace: grpc-c
+spec:
+  target: shippingservice
+---
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: paymentservice
+  namespace: grpc-c
+spec:
+  target: paymentservice
+---
+apiVersion: skupper.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: emailservice
+  namespace: grpc-c
+spec:
+  target: emailservice

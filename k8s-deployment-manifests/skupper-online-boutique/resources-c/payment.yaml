@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paymentservice
+  namespace: grpc-c
+  labels:
+    app: paymentservice
+    demo: roadshow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paymentservice
+  template:
+    metadata:
+      labels:
+        app: paymentservice
+    spec:
+      containers:
+      - name: server
+        image: gcr.io/google-samples/microservices-demo/paymentservice:v0.9.1
+        ports:
+        - containerPort: 50051
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paymentservice
+  namespace: grpc-c
+  labels:
+    app: paymentservice
+spec:
+  type: ClusterIP
+  ports:
+  - port: 50051
+    targetPort: 50051
+  selector:
+    app: paymentservice

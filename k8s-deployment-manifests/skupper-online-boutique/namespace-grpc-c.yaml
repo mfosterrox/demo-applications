@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: grpc-c
+  labels:
+    app: online-boutique
+    site: grpc-c
