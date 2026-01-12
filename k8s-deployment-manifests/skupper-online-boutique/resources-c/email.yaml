@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: server
-        image: gcr.io/google-samples/microservices-demo/emailservice:v0.9.1
+        image: gcr.io/google-samples/microservices-demo/emailservice:v0.10.0
         ports:
         - containerPort: 8080
 ---
