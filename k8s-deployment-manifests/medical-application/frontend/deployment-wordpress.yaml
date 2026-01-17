@@ -23,7 +23,7 @@ spec:
         runAsNonRoot: true
       initContainers:
       - name: volume-permissions
-        image: quay.io/lib/wordpress
+        image: quay.io/mfoster/wordpress:0.1.1
         command: ['sh', '-c']
         args:
           - |
