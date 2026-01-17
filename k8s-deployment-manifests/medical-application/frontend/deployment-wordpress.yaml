@@ -21,6 +21,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        fsGroup: 1001
       initContainers:
       - name: volume-permissions
         image: quay.io/mfoster/wordpress:0.1.1
@@ -28,13 +29,12 @@ spec:
         args:
           - |
             mkdir -p /bitnami/wordpress
-            chown -R $(id -u):$(id -g) /bitnami/wordpress
             chmod -R 775 /bitnami/wordpress
             # Ensure the directory is writable for the WordPress user
             find /bitnami/wordpress -type d -exec chmod 775 {} \;
             find /bitnami/wordpress -type f -exec chmod 664 {} \;
         securityContext:
-          runAsNonRoot: true
+          runAsUser: 0
         volumeMounts:
         - name: wordpress-data
           mountPath: /bitnami/wordpress
