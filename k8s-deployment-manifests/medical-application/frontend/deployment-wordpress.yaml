@@ -39,7 +39,7 @@ spec:
         - name: wordpress-data
           mountPath: /bitnami/wordpress
       containers:
-      - image: bitnami/wordpress:latest
+      - image: quay.io/mfoster/wordpress:0.1.1
         name: wordpress
         securityContext:
           runAsNonRoot: true
