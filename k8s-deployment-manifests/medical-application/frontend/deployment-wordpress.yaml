@@ -23,7 +23,7 @@ spec:
         runAsNonRoot: true
       initContainers:
       - name: volume-permissions
-        image: bitnami/wordpress:latest
+        image: quay.io/bitnami/wordpress
         command: ['sh', '-c']
         args:
           - |
