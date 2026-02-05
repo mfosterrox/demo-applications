@@ -21,8 +21,12 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        # OpenShift will automatically handle volume permissions
-        # fsGroup removed to avoid SCC conflicts - OpenShift assigns appropriate permissions
+        # Set fsGroup to ensure volume is writable by container user
+        # Using OpenShift-compatible range (1001010000-1001019999)
+        # This ensures the volume is owned by a group the container user belongs to
+        fsGroup: 1001010001
+        supplementalGroups:
+          - 1001010001
       containers:
       - image: quay.io/mfoster/wordpress:0.1.1
         name: wordpress
@@ -32,6 +36,7 @@ spec:
           capabilities:
             drop:
               - ALL
+          readOnlyRootFilesystem: false
         ports:
         - containerPort: 80
           protocol: TCP
@@ -44,6 +49,12 @@ spec:
           value: "wordpress"
         - name: WORDPRESS_DATABASE_NAME
           value: "wordpress"
+        # Disable Bitnami's volume permission setting (not compatible with OpenShift SCCs)
+        - name: BITNAMI_DEBUG
+          value: "true"
+        # Try to skip permission operations that will fail on OpenShift
+        - name: SKIP_FIX_PERMISSIONS
+          value: "true"
         volumeMounts:
         - name: wordpress-data
           mountPath: /bitnami/wordpress 

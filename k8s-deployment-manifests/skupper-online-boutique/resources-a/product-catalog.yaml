@@ -24,6 +24,12 @@ spec:
         image: gcr.io/google-samples/microservices-demo/productcatalogservice:v0.10.0
         ports:
         - containerPort: 3550
+        env:
+        - name: PORT
+          value: "3550"
+        # Shopping Assistant service address (optional feature - set to empty if not used)
+        - name: SHOPPING_ASSISTANT_SERVICE_ADDR
+          value: ""
 ---
 apiVersion: v1
 kind: Service
