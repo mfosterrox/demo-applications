@@ -19,11 +19,22 @@ spec:
         demo: roadshow
         repo: demo-apps
     spec:
+      terminationGracePeriodSeconds: 5
       containers:
       - name: server
         image: gcr.io/google-samples/microservices-demo/adservice:v0.10.0
         ports:
         - containerPort: 9555
+        readinessProbe:
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          grpc:
+            port: 9555
+        livenessProbe:
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          grpc:
+            port: 9555
         env:
         - name: PORT
           value: "9555"

@@ -19,14 +19,24 @@ spec:
         demo: roadshow
         repo: demo-apps
     spec:
+      terminationGracePeriodSeconds: 5
       containers:
       - name: server
         image: gcr.io/google-samples/microservices-demo/currencyservice:v0.10.0
         ports:
-        - containerPort: 7000
+        - name: grpc
+          containerPort: 7000
+        readinessProbe:
+          grpc:
+            port: 7000
+        livenessProbe:
+          grpc:
+            port: 7000
         env:
         - name: PORT
           value: "7000"
+        - name: DISABLE_PROFILER
+          value: "1"
 ---
 apiVersion: v1
 kind: Service

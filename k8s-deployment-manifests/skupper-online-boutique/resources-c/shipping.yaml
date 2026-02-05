@@ -24,9 +24,19 @@ spec:
         image: gcr.io/google-samples/microservices-demo/shippingservice:v0.10.0
         ports:
         - containerPort: 50051
+        readinessProbe:
+          periodSeconds: 5
+          grpc:
+            port: 50051
+        livenessProbe:
+          periodSeconds: 5
+          grpc:
+            port: 50051
         env:
         - name: PORT
           value: "50051"
+        - name: DISABLE_PROFILER
+          value: "1"
 ---
 apiVersion: v1
 kind: Service

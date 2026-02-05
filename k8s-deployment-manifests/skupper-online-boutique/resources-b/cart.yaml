@@ -19,11 +19,21 @@ spec:
         demo: roadshow
         repo: demo-apps
     spec:
+      terminationGracePeriodSeconds: 5
       containers:
       - name: server
         image: gcr.io/google-samples/microservices-demo/cartservice:v0.10.0
         ports:
         - containerPort: 7070
+        readinessProbe:
+          initialDelaySeconds: 15
+          grpc:
+            port: 7070
+        livenessProbe:
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          grpc:
+            port: 7070
         env:
         - name: PORT
           value: "7070"
@@ -71,6 +81,20 @@ spec:
         image: redis:alpine
         ports:
         - containerPort: 6379
+        readinessProbe:
+          periodSeconds: 5
+          tcpSocket:
+            port: 6379
+        livenessProbe:
+          periodSeconds: 5
+          tcpSocket:
+            port: 6379
+        volumeMounts:
+        - mountPath: /data
+          name: redis-data
+      volumes:
+      - name: redis-data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

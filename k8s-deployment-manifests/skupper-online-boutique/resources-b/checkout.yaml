@@ -24,6 +24,12 @@ spec:
         image: gcr.io/google-samples/microservices-demo/checkoutservice:v0.10.0
         ports:
         - containerPort: 5050
+        readinessProbe:
+          grpc:
+            port: 5050
+        livenessProbe:
+          grpc:
+            port: 5050
         env:
         - name: PORT
           value: "5050"
@@ -34,7 +40,7 @@ spec:
         - name: PAYMENT_SERVICE_ADDR
           value: "paymentservice:50051"
         - name: EMAIL_SERVICE_ADDR
-          value: "emailservice:5000"
+          value: "emailservice:8080"
         - name: CURRENCY_SERVICE_ADDR
           value: "currencyservice:7000"
         - name: CART_SERVICE_ADDR
