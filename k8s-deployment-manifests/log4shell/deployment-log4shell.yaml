@@ -21,6 +21,7 @@ spec:
       containers:
       - name: log4shell
         image: quay.io/mfoster/log4shell:0.1.0
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
