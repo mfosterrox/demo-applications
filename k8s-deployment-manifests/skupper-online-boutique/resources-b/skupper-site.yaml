@@ -3,5 +3,8 @@ kind: Site
 metadata:
   name: grpc-b
   namespace: grpc-b
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   name: grpc-b

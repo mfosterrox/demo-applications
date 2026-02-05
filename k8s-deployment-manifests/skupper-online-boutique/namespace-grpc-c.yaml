@@ -5,3 +5,5 @@ metadata:
   labels:
     app: online-boutique
     site: grpc-c
+    demo: roadshow
+    repo: demo-apps

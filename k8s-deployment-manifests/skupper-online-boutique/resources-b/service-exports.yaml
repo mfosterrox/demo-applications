@@ -3,6 +3,9 @@ kind: ServiceExport
 metadata:
   name: cartservice
   namespace: grpc-b
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: cartservice
 ---
@@ -11,5 +14,8 @@ kind: ServiceExport
 metadata:
   name: checkoutservice
   namespace: grpc-b
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: checkoutservice

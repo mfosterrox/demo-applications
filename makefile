@@ -58,6 +58,8 @@ build-images:
 			PLATFORM="linux/amd64"; \
 			if ( cd image-builds/$${component}; \
 				podman build --platform $$PLATFORM \
+				--build-arg BUILDPLATFORM=linux/amd64 \
+				--build-arg TARGETPLATFORM=linux/amd64 \
 				-t $$IMAGE_NAME . ); then \
 				SUCCESS=$$((SUCCESS + 1)); \
 				SUCCESSFUL_BUILDS="$$SUCCESSFUL_BUILDS $$component"; \
@@ -146,6 +148,8 @@ build:
 		PLATFORM="linux/amd64"; \
 		if ( cd image-builds/$(COMPONENT); \
 			podman build --platform $$PLATFORM \
+			--build-arg BUILDPLATFORM=linux/amd64 \
+			--build-arg TARGETPLATFORM=linux/amd64 \
 			-t $$IMAGE_NAME . ); then \
 			echo ""; \
 			echo "========================================================="; \
@@ -341,6 +345,71 @@ rm-all-containers:
 
 rm-all-images:
 	podman rmi -f $$(podman images -aq)
+
+tag-and-push:
+	@if [ -z "$(COMPONENT)" ]; then \
+		echo "Error: Please specify a COMPONENT to tag and push (e.g., make tag-and-push COMPONENT=example)."; \
+		exit 1; \
+	fi
+	@if [ -z "$(NEW_VERSION)" ]; then \
+		echo "========================================================="; \
+		echo "Tag and Push Image"; \
+		echo "========================================================="; \
+		echo ""; \
+		echo "Component: $(COMPONENT)"; \
+		echo "Current version: $(VERSION)"; \
+		echo ""; \
+		read -p "Enter new version to tag and push: " NEW_VERSION; \
+		if [ -z "$$NEW_VERSION" ]; then \
+			echo "Error: Version cannot be empty"; \
+			exit 1; \
+		fi; \
+	else \
+		NEW_VERSION="$(NEW_VERSION)"; \
+	fi; \
+	SOURCE_IMAGE="quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION)"; \
+	TARGET_IMAGE="quay.io/$(TEAM_NAME)/$(COMPONENT):$$NEW_VERSION"; \
+	echo ""; \
+	echo "========================================================="; \
+	echo "Tagging and pushing $(COMPONENT)"; \
+	echo "========================================================="; \
+	echo "Source: $$SOURCE_IMAGE"; \
+	echo "Target: $$TARGET_IMAGE"; \
+	echo "========================================================="; \
+	if ! podman image exists $$SOURCE_IMAGE >/dev/null 2>&1; then \
+		echo ""; \
+		echo "✗ Error: Source image does not exist locally"; \
+		echo "  Image: $$SOURCE_IMAGE"; \
+		echo "  Run 'make build COMPONENT=$(COMPONENT)' to build it first"; \
+		echo "========================================================="; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "Tagging image..."; \
+	if podman tag $$SOURCE_IMAGE $$TARGET_IMAGE; then \
+		echo "✓ Successfully tagged $(COMPONENT)"; \
+		echo ""; \
+		echo "Pushing image..."; \
+		if podman push $$TARGET_IMAGE; then \
+			echo ""; \
+			echo "========================================================="; \
+			echo "✓ Successfully tagged and pushed $(COMPONENT)"; \
+			echo "Image: $$TARGET_IMAGE"; \
+			echo "========================================================="; \
+		else \
+			echo ""; \
+			echo "========================================================="; \
+			echo "✗ Failed to push $(COMPONENT)"; \
+			echo "========================================================="; \
+			exit 1; \
+		fi; \
+	else \
+		echo ""; \
+		echo "========================================================="; \
+		echo "✗ Failed to tag $(COMPONENT)"; \
+		echo "========================================================="; \
+		exit 1; \
+	fi
 
 build-tag-and-push:
 	make build-images

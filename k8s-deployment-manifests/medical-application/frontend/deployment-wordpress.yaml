@@ -21,23 +21,8 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        fsGroup: 1001
-      initContainers:
-      - name: volume-permissions
-        image: quay.io/mfoster/wordpress:0.1.1
-        command: ['sh', '-c']
-        args:
-          - |
-            mkdir -p /bitnami/wordpress
-            chmod -R 775 /bitnami/wordpress
-            # Ensure the directory is writable for the WordPress user
-            find /bitnami/wordpress -type d -exec chmod 775 {} \;
-            find /bitnami/wordpress -type f -exec chmod 664 {} \;
-        securityContext:
-          runAsUser: 0
-        volumeMounts:
-        - name: wordpress-data
-          mountPath: /bitnami/wordpress
+        # OpenShift will automatically handle volume permissions
+        # fsGroup removed to avoid SCC conflicts - OpenShift assigns appropriate permissions
       containers:
       - image: quay.io/mfoster/wordpress:0.1.1
         name: wordpress

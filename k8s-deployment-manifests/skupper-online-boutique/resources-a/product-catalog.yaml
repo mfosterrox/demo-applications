@@ -6,6 +6,7 @@ metadata:
   labels:
     app: productcatalogservice
     demo: roadshow
+    repo: demo-apps
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,8 @@ spec:
     metadata:
       labels:
         app: productcatalogservice
+        demo: roadshow
+        repo: demo-apps
     spec:
       containers:
       - name: server
@@ -29,6 +32,8 @@ metadata:
   namespace: grpc-a
   labels:
     app: productcatalogservice
+    demo: roadshow
+    repo: demo-apps
 spec:
   type: ClusterIP
   ports:

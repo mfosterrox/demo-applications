@@ -6,6 +6,7 @@ metadata:
   labels:
     app: cartservice
     demo: roadshow
+    repo: demo-apps
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,8 @@ spec:
     metadata:
       labels:
         app: cartservice
+        demo: roadshow
+        repo: demo-apps
     spec:
       containers:
       - name: server
@@ -48,6 +51,7 @@ metadata:
   labels:
     app: redis-cart
     demo: roadshow
+    repo: demo-apps
 spec:
   replicas: 1
   selector:
@@ -57,6 +61,8 @@ spec:
     metadata:
       labels:
         app: redis-cart
+        demo: roadshow
+        repo: demo-apps
     spec:
       containers:
       - name: redis
@@ -71,6 +77,8 @@ metadata:
   namespace: grpc-b
   labels:
     app: redis-cart
+    demo: roadshow
+    repo: demo-apps
 spec:
   type: ClusterIP
   ports:

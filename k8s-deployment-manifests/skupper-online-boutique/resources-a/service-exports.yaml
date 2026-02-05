@@ -3,6 +3,9 @@ kind: ServiceExport
 metadata:
   name: productcatalogservice
   namespace: grpc-a
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: productcatalogservice
 ---
@@ -11,6 +14,9 @@ kind: ServiceExport
 metadata:
   name: currencyservice
   namespace: grpc-a
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: currencyservice
 ---
@@ -27,5 +33,8 @@ kind: ServiceExport
 metadata:
   name: adservice
   namespace: grpc-a
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: adservice

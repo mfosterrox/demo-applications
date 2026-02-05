@@ -3,6 +3,9 @@ kind: ServiceExport
 metadata:
   name: shippingservice
   namespace: grpc-c
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: shippingservice
 ---
@@ -19,5 +22,8 @@ kind: ServiceExport
 metadata:
   name: emailservice
   namespace: grpc-c
+  labels:
+    demo: roadshow
+    repo: demo-apps
 spec:
   target: emailservice

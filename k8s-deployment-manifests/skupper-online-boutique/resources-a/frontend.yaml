@@ -6,6 +6,7 @@ metadata:
   labels:
     app: frontend
     demo: roadshow
+    repo: demo-apps
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,8 @@ spec:
     metadata:
       labels:
         app: frontend
+        demo: roadshow
+        repo: demo-apps
     spec:
       containers:
       - name: server
@@ -46,6 +49,8 @@ metadata:
   namespace: grpc-a
   labels:
     app: frontend
+    demo: roadshow
+    repo: demo-apps
 spec:
   type: ClusterIP
   ports:
@@ -59,6 +64,10 @@ apiVersion: route.openshift.io/v1
 metadata:
   name: frontend
   namespace: grpc-a
+  labels:
+    app: frontend
+    demo: roadshow
+    repo: demo-apps
 spec:
   to:
     kind: Service

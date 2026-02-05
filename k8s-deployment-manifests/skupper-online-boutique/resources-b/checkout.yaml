@@ -6,6 +6,7 @@ metadata:
   labels:
     app: checkoutservice
     demo: roadshow
+    repo: demo-apps
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,8 @@ spec:
     metadata:
       labels:
         app: checkoutservice
+        demo: roadshow
+        repo: demo-apps
     spec:
       containers:
       - name: server
@@ -42,6 +45,8 @@ metadata:
   namespace: grpc-b
   labels:
     app: checkoutservice
+    demo: roadshow
+    repo: demo-apps
 spec:
   type: ClusterIP
   ports:
