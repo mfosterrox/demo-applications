@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: grpc-b
-  labels:
-    app: online-boutique
-    site: grpc-b
-    demo: roadshow
-    repo: demo-apps
