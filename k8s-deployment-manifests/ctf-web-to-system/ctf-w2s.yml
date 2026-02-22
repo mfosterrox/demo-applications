@@ -13,9 +13,9 @@ spec:
     app: ctf-web-to-system
   ports:
     - protocol: TCP
-      port: 80 
-      targetPort: 9090  
-  type: LoadBalancer
+      port: 80
+      targetPort: 9090
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -42,3 +42,9 @@ spec:
         image: quay.io/jechoisec/ctf-web-to-system-01
         ports:
         - containerPort: 9090
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 9090
+          initialDelaySeconds: 10
+          periodSeconds: 5
