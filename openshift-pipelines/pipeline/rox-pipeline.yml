@@ -13,8 +13,6 @@ spec:
   - name: image-scan
     taskRef:
       name: rox-image-scan
-      kind: Task
-      apiVersion: tekton.dev/v1beta1
     params:
     - name: image
       value: $(params.image)
@@ -24,19 +22,13 @@ spec:
       value: roxsecrets
     - name: output_format
       value: json
-    - name: GRPC_ENFORCE_ALPN_ENABLED
-      value: FALSE      
   - name: image-check
     taskRef:
       name: rox-image-check
-      kind: Task
-      apiVersion: tekton.dev/v1beta1
     params:
     - name: image
       value: $(params.image)
     - name: rox_api_token
       value: roxsecrets
     - name: rox_central_endpoint
-      value: roxsecrets
-    - name: GRPC_ENFORCE_ALPN_ENABLED
-      value: FALSE      
+      value: roxsecrets      
