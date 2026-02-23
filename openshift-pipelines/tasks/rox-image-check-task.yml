@@ -7,19 +7,19 @@ spec:
   params:
     - name: rox_central_endpoint
       type: string
-      description: Secret name containing the address:port for StackRox Central (e.g. rox.stackrox.io:443)
+      description: Secret containing the address:port tuple for StackRox Central (example - rox.stackrox.io:443)
     - name: rox_api_token
       type: string
-      description: Secret name containing the StackRox API token with CI permissions
+      description: Secret containing the StackRox API token with CI permissions
     - name: image
       type: string
-      description: Full name of image to check (e.g. quay.io/user/app:tag)
+      description: Full name of image to scan (example - gcr.io/rox/sample:5.0-rc1)
   results:
     - name: check_output
-      description: Output of roxctl image check
+      description: Output of `roxctl image check`
   steps:
-    - name: check
-      image: quay.io/stackrox-io/roxctl:latest
+    - name: rox-image-check
+      image: centos:8
       env:
         - name: ROX_API_TOKEN
           valueFrom:
@@ -33,11 +33,9 @@ spec:
               key: rox_central_endpoint
         - name: GRPC_ENFORCE_ALPN_ENABLED
           value: "FALSE"
-      command:
-        - roxctl
-        - image
-        - check
-      args:
-        - "--insecure-skip-tls-verify"
-        - "--image"
-        - "$(params.image)"
+      script: |
+        #!/usr/bin/env bash
+        set +x
+        curl -k -L -H "Authorization: Bearer $ROX_API_TOKEN" https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux --output ./roxctl  > /dev/null; echo "Getting roxctl"
+        chmod +x ./roxctl  > /dev/null
+        ./roxctl image check --insecure-skip-tls-verify -e $ROX_CENTRAL_ENDPOINT --image $(params.image)
