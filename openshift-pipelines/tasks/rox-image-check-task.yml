@@ -1,5 +1,5 @@
 apiVersion: tekton.dev/v1beta1
-kind: ClusterTask
+kind: Task
 metadata:
   name: rox-image-check
   namespace: pipeline-demo
@@ -13,10 +13,10 @@ spec:
       description: Secret containing the StackRox API token with CI permissions
     - name: image
       type: string
-      description: Full name of image to scan (example -- gcr.io/rox/sample:5.0-rc1)
+      description: Full name of image to scan (example - gcr.io/rox/sample:5.0-rc1)
   results:
-      - name: check_output
-        description: Output of `roxctl image check`
+    - name: check_output
+      description: Output of `roxctl image check`
   steps:
     - name: rox-image-check
       image: centos:8
@@ -32,10 +32,10 @@ spec:
               name: $(params.rox_central_endpoint)
               key: rox_central_endpoint
         - name: GRPC_ENFORCE_ALPN_ENABLED
-          value: "FALSE"              
+          value: "FALSE"
       script: |
         #!/usr/bin/env bash
         set +x
         curl -k -L -H "Authorization: Bearer $ROX_API_TOKEN" https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux --output ./roxctl  > /dev/null; echo "Getting roxctl"
         chmod +x ./roxctl  > /dev/null
-        ./roxctl image check --insecure-skip-tls-verify -e $ROX_CENTRAL_ENDPOINT --image $(params.image) 
+        ./roxctl image check --insecure-skip-tls-verify -e $ROX_CENTRAL_ENDPOINT --image $(params.image)

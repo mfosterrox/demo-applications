@@ -1,5 +1,5 @@
 apiVersion: tekton.dev/v1beta1
-kind: ClusterTask
+kind: Task
 metadata:
   name: rox-deployment-check
   namespace: pipeline-demo
@@ -40,6 +40,7 @@ spec:
           value: "FALSE"
       script: |
         #!/usr/bin/env bash
+        set -e
         set +x
         cat /deployfile/deploy.yml
         curl -k -L -H "Authorization: Bearer $ROX_API_TOKEN" https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux --output ./roxctl  > /dev/null; echo "Getting roxctl"
