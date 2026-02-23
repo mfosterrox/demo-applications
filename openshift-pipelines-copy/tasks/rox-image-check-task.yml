@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
-kind: ClusterTask
+kind: Task
 metadata:
-  name: rox-deployment-check
+  name: rox-image-check
   namespace: pipeline-demo
 spec:
   params:
@@ -11,19 +11,14 @@ spec:
     - name: rox_api_token
       type: string
       description: Secret containing the StackRox API token with CI permissions
-    - name: file
+    - name: image
       type: string
-      description: YAML file in the deployfiles workspace
+      description: Full name of image to scan (example - gcr.io/rox/sample:5.0-rc1)
   results:
     - name: check_output
-      description: Output of `roxctl deployment check`
-  workspaces:
-    - name: deployfiles
-      description: |
-        The folder containing deployment files
-      mountPath: /deployfile
+      description: Output of `roxctl image check`
   steps:
-    - name: rox-deployment-check
+    - name: rox-image-check
       image: centos:8
       env:
         - name: ROX_API_TOKEN
@@ -41,7 +36,6 @@ spec:
       script: |
         #!/usr/bin/env bash
         set +x
-        cat /deployfile/deploy.yml
         curl -k -L -H "Authorization: Bearer $ROX_API_TOKEN" https://$ROX_CENTRAL_ENDPOINT/api/cli/download/roxctl-linux --output ./roxctl  > /dev/null; echo "Getting roxctl"
         chmod +x ./roxctl  > /dev/null
-        ./roxctl deployment check --insecure-skip-tls-verify -e $ROX_CENTRAL_ENDPOINT -f /deployfile/$(params.file)
+        ./roxctl image check --insecure-skip-tls-verify -e $ROX_CENTRAL_ENDPOINT --image $(params.image)
