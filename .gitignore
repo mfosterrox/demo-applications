@@ -136,7 +136,6 @@ kubeconfig
 *.key
 *.crt
 *.cert
-secrets/
 *.secret
 !**/encryptionkeys/*.pub
 !**/encryptionkeys/*.key
