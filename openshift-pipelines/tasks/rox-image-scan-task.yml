@@ -34,10 +34,13 @@ spec:
               key: rox_central_endpoint
         - name: GRPC_ENFORCE_ALPN_ENABLED
           value: "FALSE"
-      script: |
-        #!/usr/bin/env bash
-        set -e
-        roxctl image scan --insecure-skip-tls-verify \
-          -e "$ROX_CENTRAL_ENDPOINT" \
-          --image "$(params.image)" \
-          --output "$(params.output_format)"
+      command:
+        - /bin/sh
+        - -c
+      args:
+        - |
+          set -e
+          roxctl image scan --insecure-skip-tls-verify \
+            -e "$ROX_CENTRAL_ENDPOINT" \
+            --image "$(params.image)" \
+            --output "$(params.output_format)"
