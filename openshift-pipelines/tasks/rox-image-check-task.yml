@@ -34,11 +34,10 @@ spec:
         - name: GRPC_ENFORCE_ALPN_ENABLED
           value: "FALSE"
       command:
-        - /bin/sh
-        - -c
+        - roxctl
+        - image
+        - check
       args:
-        - |
-          set -e
-          roxctl image check --insecure-skip-tls-verify \
-            -e "$ROX_CENTRAL_ENDPOINT" \
-            --image "$(params.image)"
+        - "--insecure-skip-tls-verify"
+        - "--image"
+        - "$(params.image)"
