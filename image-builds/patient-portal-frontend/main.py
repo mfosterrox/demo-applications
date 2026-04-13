@@ -24,6 +24,7 @@ import os
 import json
 import uuid
 import uvicorn
+from contextlib import asynccontextmanager
 
 from httpx import AsyncClient
 from psycopg_pool import AsyncConnectionPool
@@ -83,9 +84,21 @@ async def startup():
     asyncio.create_task(listen())
 
 async def shutdown():
-    await pool.close()
+    global pool
+    if pool is not None:
+        await pool.close()
 
-star = Starlette(debug=True, on_startup=[startup], on_shutdown=[shutdown])
+
+@asynccontextmanager
+async def lifespan(app):
+    await startup()
+    try:
+        yield
+    finally:
+        await shutdown()
+
+
+star = Starlette(debug=True, lifespan=lifespan)
 star.mount("/static", StaticFiles(directory="static"), name="static")
 
 @star.route("/")

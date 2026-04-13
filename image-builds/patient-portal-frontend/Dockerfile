@@ -17,7 +17,6 @@
 # under the License.
 #
 
-# Full Python image: hummingbird/python is distroless (no /bin/sh), so RUN cannot be used there.
 FROM docker.io/library/python:3.14-slim AS build
 
 # Build packages to a writable location (/tmp is typically writable)

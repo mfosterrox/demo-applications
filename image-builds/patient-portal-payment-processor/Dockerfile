@@ -17,13 +17,12 @@
 # under the License.
 #
 
-# Full Python image: hummingbird/python is distroless (no /bin/sh), so RUN cannot be used there.
 FROM docker.io/library/python:3.14-slim AS build
 
 # Build packages to a writable location (/tmp is typically writable)
 RUN pip install --no-cache-dir --target /tmp/packages starlette uvicorn
 
-FROM quay.io/hummingbird/python:3.14 AS run
+FROM docker.io/library/python:3.14-slim AS run
 
 # Copy packages to user-writable location and set PYTHONPATH
 # COPY automatically creates directories
