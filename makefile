@@ -1,8 +1,15 @@
 # Define variables
 TEAM_NAME := mfoster
 VERSION := 0.1.0
-APPLICATIONS:= apache-struts dvwa dvwa-hummingbird log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat
-MANIFEST_DIR ?= deployment-manifests  
+GENAI_STACK_COMPONENTS := genai-stack-bot genai-stack-loader genai-stack-pdf-bot genai-stack-api genai-stack-front-end genai-stack-pull-model
+APPLICATIONS:= apache-struts dvwa dvwa-hummingbird log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat $(GENAI_STACK_COMPONENTS)
+MANIFEST_DIR ?= deployment-manifests
+GENAI_STACK_DIR := image-builds/genai-stack
+
+# docker/genai-stack does not publish genai-stack-front-end or genai-stack-pull-model on a public registry (compose always builds them from Git).
+# To skip local builds, set both to full image refs you can pull (e.g. CI-built linux/amd64 images on Quay or ghcr.io), then: make pull-retag-genai-stack-images
+GENAI_STACK_FRONT_END_SOURCE ?=
+GENAI_STACK_PULL_MODEL_SOURCE ?=
 
 update:
 	@echo "Updating image tags in Kubernetes manifests in $(MANIFEST_DIR)"
@@ -33,7 +40,16 @@ build-images:
 		TOTAL=$$((TOTAL + 1)); \
 		echo ""; \
 		IMAGE_NAME="quay.io/$(TEAM_NAME)/$${component}:$(VERSION)"; \
-		DOCKERFILE="image-builds/$${component}/Dockerfile"; \
+		BUILD_CONTEXT="image-builds/$${component}"; \
+		DOCKERFILE="$$BUILD_CONTEXT/Dockerfile"; \
+		case "$$component" in \
+			genai-stack-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/bot.Dockerfile" ;; \
+			genai-stack-loader) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/loader.Dockerfile" ;; \
+			genai-stack-pdf-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pdf_bot.Dockerfile" ;; \
+			genai-stack-api) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/api.Dockerfile" ;; \
+			genai-stack-front-end) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/front-end.Dockerfile" ;; \
+			genai-stack-pull-model) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pull_model.Dockerfile" ;; \
+		esac; \
 		SHOULD_BUILD=false; \
 		if ! podman image exists $$IMAGE_NAME >/dev/null 2>&1; then \
 			SHOULD_BUILD=true; \
@@ -56,10 +72,13 @@ build-images:
 			echo "  Image: $$IMAGE_NAME"; \
 		else \
 			PLATFORM="linux/amd64"; \
-			if ( cd image-builds/$${component}; \
+			if [ ! -f "$$DOCKERFILE" ]; then \
+				FAILED=$$((FAILED + 1)); \
+				FAILED_BUILDS="$$FAILED_BUILDS $$component"; \
+				echo "✗ Failed to build $$component (Dockerfile not found: $$DOCKERFILE)"; \
+			elif ( cd "$$BUILD_CONTEXT"; \
 				podman build --platform $$PLATFORM \
-				--build-arg BUILDPLATFORM=linux/amd64 \
-				--build-arg TARGETPLATFORM=linux/amd64 \
+				-f "$$(basename "$$DOCKERFILE")" \
 				-t $$IMAGE_NAME . ); then \
 				SUCCESS=$$((SUCCESS + 1)); \
 				SUCCESSFUL_BUILDS="$$SUCCESSFUL_BUILDS $$component"; \
@@ -115,7 +134,21 @@ build:
 		exit 1; \
 	fi
 	@IMAGE_NAME="quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION)"; \
-	DOCKERFILE="image-builds/$(COMPONENT)/Dockerfile"; \
+	BUILD_CONTEXT="image-builds/$(COMPONENT)"; \
+	DOCKERFILE="$$BUILD_CONTEXT/Dockerfile"; \
+	case "$(COMPONENT)" in \
+		genai-stack-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/bot.Dockerfile" ;; \
+		genai-stack-loader) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/loader.Dockerfile" ;; \
+		genai-stack-pdf-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pdf_bot.Dockerfile" ;; \
+		genai-stack-api) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/api.Dockerfile" ;; \
+		genai-stack-front-end) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/front-end.Dockerfile" ;; \
+		genai-stack-pull-model) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pull_model.Dockerfile" ;; \
+	esac; \
+	if [ ! -f "$$DOCKERFILE" ]; then \
+		echo "Error: Dockerfile not found for component $(COMPONENT)"; \
+		echo "  Expected: $$DOCKERFILE"; \
+		exit 1; \
+	fi; \
 	SHOULD_BUILD=false; \
 	if ! podman image exists $$IMAGE_NAME >/dev/null 2>&1; then \
 		SHOULD_BUILD=true; \
@@ -146,10 +179,9 @@ build:
 		echo "========================================================="; \
 	else \
 		PLATFORM="linux/amd64"; \
-		if ( cd image-builds/$(COMPONENT); \
+		if ( cd "$$BUILD_CONTEXT"; \
 			podman build --platform $$PLATFORM \
-			--build-arg BUILDPLATFORM=linux/amd64 \
-			--build-arg TARGETPLATFORM=linux/amd64 \
+			-f "$$(basename "$$DOCKERFILE")" \
 			-t $$IMAGE_NAME . ); then \
 			echo ""; \
 			echo "========================================================="; \
@@ -490,6 +522,40 @@ pull:
 	else \
 		echo "All pulls completed successfully!"; \
 	fi
+
+# Pull two GenAI images from a registry you control and tag them as quay.io/$(TEAM_NAME)/…:$(VERSION).
+# Required: GENAI_STACK_FRONT_END_SOURCE and GENAI_STACK_PULL_MODEL_SOURCE (full refs, e.g. quay.io/myorg/genai-front:0.1.0).
+pull-retag-genai-stack-images:
+	@if [ -z "$(GENAI_STACK_FRONT_END_SOURCE)" ] || [ -z "$(GENAI_STACK_PULL_MODEL_SOURCE)" ]; then \
+		echo "Error: set both GENAI_STACK_FRONT_END_SOURCE and GENAI_STACK_PULL_MODEL_SOURCE."; \
+		echo "There is no public upstream image for these services; use mirrors you pushed from a Linux/CI build."; \
+		exit 1; \
+	fi
+	@echo "Pulling $(GENAI_STACK_FRONT_END_SOURCE) (linux/amd64)..."
+	@podman pull --platform linux/amd64 $(GENAI_STACK_FRONT_END_SOURCE)
+	@podman tag $(GENAI_STACK_FRONT_END_SOURCE) quay.io/$(TEAM_NAME)/genai-stack-front-end:$(VERSION)
+	@echo "Tagged quay.io/$(TEAM_NAME)/genai-stack-front-end:$(VERSION)"
+	@echo "Pulling $(GENAI_STACK_PULL_MODEL_SOURCE) (linux/amd64)..."
+	@podman pull --platform linux/amd64 $(GENAI_STACK_PULL_MODEL_SOURCE)
+	@podman tag $(GENAI_STACK_PULL_MODEL_SOURCE) quay.io/$(TEAM_NAME)/genai-stack-pull-model:$(VERSION)
+	@echo "Tagged quay.io/$(TEAM_NAME)/genai-stack-pull-model:$(VERSION)"
+	@echo "Done. Run make push-images (or push only these two) when ready."
+
+# Local GenAI stack (https://github.com/docker/genai-stack) with Podman Compose + compose.podman.yaml (host-gateway for Ollama on host).
+# Prereq: podman compose; copy env.example to .env in GENAI_STACK_DIR; start Ollama on host (ollama serve) unless using --profile linux.
+genai-podman-up:
+	@echo "Starting GenAI stack from $(GENAI_STACK_DIR) (Podman)..."
+	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml up --build -d
+
+genai-podman-down:
+	@echo "Stopping GenAI stack..."
+	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml down
+
+genai-podman-logs:
+	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml logs -f
+
+genai-podman-ps:
+	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml ps
 
 push-images:
 	@echo "========================================================="

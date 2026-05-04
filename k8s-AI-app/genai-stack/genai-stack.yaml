@@ -1,0 +1,492 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: genai-stack-config
+  namespace: genai-stack
+  labels:
+    app: genai-stack
+    demo: roadshow
+    repo: demo-apps
+data:
+  NEO4J_URI: "neo4j://neo4j:7687"
+  NEO4J_USERNAME: "neo4j"
+  LLM: "llama2"
+  EMBEDDING_MODEL: "sentence_transformer"
+  OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+  LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
+  LANGCHAIN_TRACING_V2: "false"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: genai-stack-secrets
+  namespace: genai-stack
+  labels:
+    app: genai-stack
+    demo: roadshow
+    repo: demo-apps
+type: Opaque
+stringData:
+  NEO4J_PASSWORD: "password"
+  OPENAI_API_KEY: ""
+  GOOGLE_API_KEY: ""
+  LANGCHAIN_PROJECT: ""
+  LANGCHAIN_API_KEY: ""
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  AWS_DEFAULT_REGION: "us-east-1"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-data
+  namespace: genai-stack
+  labels:
+    app: neo4j
+    demo: roadshow
+    repo: demo-apps
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neo4j
+  namespace: genai-stack
+  labels:
+    app: neo4j
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+  template:
+    metadata:
+      labels:
+        app: neo4j
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5.26
+          ports:
+            - name: bolt
+              containerPort: 7687
+            - name: http
+              containerPort: 7474
+          env:
+            - name: NEO4J_AUTH
+              value: "neo4j/password"
+            - name: NEO4J_PLUGINS
+              value: '["apoc"]'
+            - name: NEO4J_db_tx__log_rotation_retention__policy
+              value: "false"
+            - name: NEO4J_dbms_security_procedures_unrestricted
+              value: "apoc.*"
+          volumeMounts:
+            - name: neo4j-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 7474
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 7474
+            initialDelaySeconds: 40
+            periodSeconds: 20
+      volumes:
+        - name: neo4j-data
+          persistentVolumeClaim:
+            claimName: neo4j-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j
+  namespace: genai-stack
+  labels:
+    app: neo4j
+    demo: roadshow
+    repo: demo-apps
+spec:
+  selector:
+    app: neo4j
+  ports:
+    - name: bolt
+      port: 7687
+      targetPort: 7687
+    - name: http
+      port: 7474
+      targetPort: 7474
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pull-model
+  namespace: genai-stack
+  labels:
+    app: pull-model
+    demo: roadshow
+    repo: demo-apps
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: pull-model
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: pull-model
+          image: quay.io/mfoster/genai-stack-pull-model:0.1.0
+          envFrom:
+            - configMapRef:
+                name: genai-stack-config
+            - secretRef:
+                name: genai-stack-secrets
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genai-stack-bot
+  namespace: genai-stack
+  labels:
+    app: genai-stack-bot
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genai-stack-bot
+  template:
+    metadata:
+      labels:
+        app: genai-stack-bot
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: genai-stack-bot
+          image: quay.io/mfoster/genai-stack-bot:0.1.0
+          ports:
+            - name: http
+              containerPort: 8501
+          envFrom:
+            - configMapRef:
+                name: genai-stack-config
+            - secretRef:
+                name: genai-stack-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: genai-stack-bot
+  namespace: genai-stack
+  labels:
+    app: genai-stack-bot
+    demo: roadshow
+    repo: demo-apps
+spec:
+  selector:
+    app: genai-stack-bot
+  ports:
+    - name: http
+      port: 8501
+      targetPort: 8501
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: genai-stack-bot
+  namespace: genai-stack
+  labels:
+    app: genai-stack-bot
+    demo: roadshow
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: genai-stack-bot
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genai-stack-loader
+  namespace: genai-stack
+  labels:
+    app: genai-stack-loader
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genai-stack-loader
+  template:
+    metadata:
+      labels:
+        app: genai-stack-loader
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: genai-stack-loader
+          image: quay.io/mfoster/genai-stack-loader:0.1.0
+          ports:
+            - name: http
+              containerPort: 8502
+          envFrom:
+            - configMapRef:
+                name: genai-stack-config
+            - secretRef:
+                name: genai-stack-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: genai-stack-loader
+  namespace: genai-stack
+  labels:
+    app: genai-stack-loader
+    demo: roadshow
+    repo: demo-apps
+spec:
+  selector:
+    app: genai-stack-loader
+  ports:
+    - name: http
+      port: 8502
+      targetPort: 8502
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: genai-stack-loader
+  namespace: genai-stack
+  labels:
+    app: genai-stack-loader
+    demo: roadshow
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: genai-stack-loader
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genai-stack-pdf-bot
+  namespace: genai-stack
+  labels:
+    app: genai-stack-pdf-bot
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genai-stack-pdf-bot
+  template:
+    metadata:
+      labels:
+        app: genai-stack-pdf-bot
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: genai-stack-pdf-bot
+          image: quay.io/mfoster/genai-stack-pdf-bot:0.1.0
+          ports:
+            - name: http
+              containerPort: 8503
+          envFrom:
+            - configMapRef:
+                name: genai-stack-config
+            - secretRef:
+                name: genai-stack-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: genai-stack-pdf-bot
+  namespace: genai-stack
+  labels:
+    app: genai-stack-pdf-bot
+    demo: roadshow
+    repo: demo-apps
+spec:
+  selector:
+    app: genai-stack-pdf-bot
+  ports:
+    - name: http
+      port: 8503
+      targetPort: 8503
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: genai-stack-pdf-bot
+  namespace: genai-stack
+  labels:
+    app: genai-stack-pdf-bot
+    demo: roadshow
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: genai-stack-pdf-bot
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genai-stack-api
+  namespace: genai-stack
+  labels:
+    app: genai-stack-api
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genai-stack-api
+  template:
+    metadata:
+      labels:
+        app: genai-stack-api
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: genai-stack-api
+          image: quay.io/mfoster/genai-stack-api:0.1.0
+          ports:
+            - name: http
+              containerPort: 8504
+          envFrom:
+            - configMapRef:
+                name: genai-stack-config
+            - secretRef:
+                name: genai-stack-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: genai-stack-api
+  namespace: genai-stack
+  labels:
+    app: genai-stack-api
+    demo: roadshow
+    repo: demo-apps
+spec:
+  selector:
+    app: genai-stack-api
+  ports:
+    - name: http
+      port: 8504
+      targetPort: 8504
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: genai-stack-api
+  namespace: genai-stack
+  labels:
+    app: genai-stack-api
+    demo: roadshow
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: genai-stack-api
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genai-stack-front-end
+  namespace: genai-stack
+  labels:
+    app: genai-stack-front-end
+    demo: roadshow
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genai-stack-front-end
+  template:
+    metadata:
+      labels:
+        app: genai-stack-front-end
+        demo: roadshow
+        repo: demo-apps
+    spec:
+      containers:
+        - name: genai-stack-front-end
+          image: quay.io/mfoster/genai-stack-front-end:0.1.0
+          ports:
+            - name: http
+              containerPort: 8505
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: genai-stack-front-end
+  namespace: genai-stack
+  labels:
+    app: genai-stack-front-end
+    demo: roadshow
+    repo: demo-apps
+spec:
+  selector:
+    app: genai-stack-front-end
+  ports:
+    - name: http
+      port: 8505
+      targetPort: 8505
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: genai-stack-front-end
+  namespace: genai-stack
+  labels:
+    app: genai-stack-front-end
+    demo: roadshow
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: genai-stack-front-end
+  port:
+    targetPort: http
+  tls:
+    termination: edge
