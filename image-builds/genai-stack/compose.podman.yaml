@@ -1,0 +1,23 @@
+# Podman Compose merge file (https://github.com/docker/genai-stack compatible).
+# Use with: podman compose -f docker-compose.yml -f compose.podman.yaml up --build
+#
+# Maps host.docker.internal / host.containers.internal to the host so the default
+# OLLAMA_BASE_URL (http://host.docker.internal:11434) reaches Ollama on the host.
+# Requires Podman 4.1+ (host-gateway). On Linux rootless, ensure the machine allows it.
+
+x-podman-host: &podman-host
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+    - "host.containers.internal:host-gateway"
+
+services:
+  pull-model:
+    <<: *podman-host
+  loader:
+    <<: *podman-host
+  bot:
+    <<: *podman-host
+  pdf_bot:
+    <<: *podman-host
+  api:
+    <<: *podman-host
