@@ -20,7 +20,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ctf-web-to-system
+  name: parasol-insurance
   namespace: ctf-web-to-system
   labels:
     app: ctf-web-to-system
