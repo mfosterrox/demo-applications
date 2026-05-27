@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-apps
+
