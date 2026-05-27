@@ -1,0 +1,18 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: emojivoto
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+spec:
+  to:
+    kind: Service
+    name: web-svc
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+  wildcardPolicy: None

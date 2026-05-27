@@ -2,6 +2,8 @@
 TEAM_NAME := mfoster
 VERSION := 0.1.0
 GENAI_STACK_COMPONENTS := genai-stack-bot genai-stack-loader genai-stack-pdf-bot genai-stack-api genai-stack-front-end genai-stack-pull-model
+# Emojivoto is built separately (one source tree, four images) — see build-emojivoto / EMOJIVOTO_IMAGES
+EMOJIVOTO_IMAGES := emojivoto-svc-base emojivoto-web emojivoto-emoji-svc emojivoto-voting-svc
 APPLICATIONS:= apache-struts dvwa dvwa-hummingbird log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat $(GENAI_STACK_COMPONENTS)
 MANIFEST_DIR ?= deployment-manifests
 GENAI_STACK_DIR := image-builds/genai-stack
@@ -120,6 +122,18 @@ build-images:
 		done; \
 		echo ""; \
 	fi; \
+	echo "========================================================="; \
+	echo "Building Emojivoto ($(words $(EMOJIVOTO_IMAGES)) images)..."; \
+	echo "========================================================="; \
+	if ( cd image-builds/emojivoto && \
+		TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) REGISTRY_PREFIX=quay.io/$(TEAM_NAME) IMAGE_TAG=$(VERSION) \
+		./build-images.sh ); then \
+		echo "✓ Emojivoto build succeeded"; \
+	else \
+		FAILED=$$((FAILED + 1)); \
+		echo "✗ Emojivoto build failed"; \
+	fi; \
+	echo ""; \
 	echo "========================================================="; \
 	if [ $$FAILED -gt 0 ]; then \
 		echo "Build completed with errors. Some builds failed."; \
@@ -444,8 +458,8 @@ tag-and-push:
 	fi
 
 build-tag-and-push:
-	make build-images
-	make push-images
+	$(MAKE) build-images
+	$(MAKE) push-images
 
 build-check-tag-push:
 	@echo "========================================================="
@@ -575,6 +589,24 @@ push-images:
 		TOTAL=$$((TOTAL + 1)); \
 		echo ""; \
 		echo "Pushing $$component ($$TOTAL/$$TOTAL_COUNT)..."; \
+		if podman push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
+			SUCCESS=$$((SUCCESS + 1)); \
+			SUCCESSFUL_PUSHES="$$SUCCESSFUL_PUSHES $$component"; \
+			echo "✓ Successfully pushed $$component"; \
+		else \
+			FAILED=$$((FAILED + 1)); \
+			FAILED_PUSHES="$$FAILED_PUSHES $$component"; \
+			echo "✗ Failed to push $$component"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "========================================================="; \
+	echo "Pushing Emojivoto images..."; \
+	echo "========================================================="; \
+	for component in $(EMOJIVOTO_IMAGES); do \
+		TOTAL=$$((TOTAL + 1)); \
+		echo ""; \
+		echo "Pushing $$component..."; \
 		if podman push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
 			SUCCESS=$$((SUCCESS + 1)); \
 			SUCCESSFUL_PUSHES="$$SUCCESSFUL_PUSHES $$component"; \
@@ -915,3 +947,26 @@ podman-ps:
 	done; \
 	echo ""; \
 	echo "========================================================="
+
+# Emojivoto (multi-image app under image-builds/emojivoto/)
+.PHONY: build-emojivoto push-emojivoto build-push-emojivoto update-emojivoto-manifests
+
+build-emojivoto:
+	@cd image-builds/emojivoto && \
+		TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) REGISTRY_PREFIX=quay.io/$(TEAM_NAME) IMAGE_TAG=$(VERSION) \
+		./build-images.sh
+
+push-emojivoto:
+	@cd image-builds/emojivoto && \
+		TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) REGISTRY_PREFIX=quay.io/$(TEAM_NAME) IMAGE_TAG=$(VERSION) \
+		PUSH=1 ./build-images.sh
+
+build-push-emojivoto: build-emojivoto push-emojivoto
+
+update-emojivoto-manifests:
+	@echo "Updating emojivoto image refs to quay.io/$(TEAM_NAME)/emojivoto-*:$(VERSION)"
+	@sed -E -i.bak \
+		's|quay\.io/[^/]+/emojivoto-(web|emoji-svc|voting-svc):[^[:space:]]+|quay.io/$(TEAM_NAME)/emojivoto-\1:$(VERSION)|g' \
+		k8s-deployment-manifests/emojivoto/everything.yml
+	@rm -f k8s-deployment-manifests/emojivoto/everything.yml.bak
+	@echo "Done. Review k8s-deployment-manifests/emojivoto/everything.yml"

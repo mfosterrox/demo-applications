@@ -1,0 +1,277 @@
+# Emojivoto — microservice voting demo with automatic traffic from vote-bot.
+# Upstream: https://github.com/BuoyantIO/emojivoto (Apache-2.0)
+#
+# Images: public Buoyant builds (same as kustomize/deployment). vote-bot reuses emojivoto-web.
+# Custom Quay images: build image-builds/emojivoto, then make update-emojivoto-manifests TEAM_NAME=... VERSION=...
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: web
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: emojivoto
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/part-of: emojivoto
+    app.kubernetes.io/version: v11
+    demo: roadshow
+    repo: demo-applications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-svc
+      version: v11
+  template:
+    metadata:
+      labels:
+        app: web-svc
+        version: v11
+        demo: roadshow
+        repo: demo-applications
+    spec:
+      serviceAccountName: web
+      containers:
+        - name: web-svc
+          image: docker.l5d.io/buoyantio/emojivoto-web:v11
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WEB_PORT
+              value: "8080"
+            - name: EMOJISVC_HOST
+              value: emoji-svc.emojivoto:8080
+            - name: VOTINGSVC_HOST
+              value: voting-svc.emojivoto:8080
+            - name: INDEX_BUNDLE
+              value: dist/index_bundle.js
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+spec:
+  type: ClusterIP
+  selector:
+    app: web-svc
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: emoji
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: emoji
+  namespace: emojivoto
+  labels:
+    app.kubernetes.io/name: emoji
+    app.kubernetes.io/part-of: emojivoto
+    app.kubernetes.io/version: v11
+    demo: roadshow
+    repo: demo-applications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: emoji-svc
+      version: v11
+  template:
+    metadata:
+      labels:
+        app: emoji-svc
+        version: v11
+        demo: roadshow
+        repo: demo-applications
+    spec:
+      serviceAccountName: emoji
+      containers:
+        - name: emoji-svc
+          image: docker.l5d.io/buoyantio/emojivoto-emoji-svc:v11
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GRPC_PORT
+              value: "8080"
+            - name: PROM_PORT
+              value: "8801"
+          ports:
+            - containerPort: 8080
+              name: grpc
+              protocol: TCP
+            - containerPort: 8801
+              name: prom
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: emoji-svc
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+spec:
+  selector:
+    app: emoji-svc
+  ports:
+    - name: grpc
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prom
+      port: 8801
+      targetPort: 8801
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: voting
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voting
+  namespace: emojivoto
+  labels:
+    app.kubernetes.io/name: voting
+    app.kubernetes.io/part-of: emojivoto
+    app.kubernetes.io/version: v11
+    demo: roadshow
+    repo: demo-applications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voting-svc
+      version: v11
+  template:
+    metadata:
+      labels:
+        app: voting-svc
+        version: v11
+        demo: roadshow
+        repo: demo-applications
+    spec:
+      serviceAccountName: voting
+      containers:
+        - name: voting-svc
+          image: docker.l5d.io/buoyantio/emojivoto-voting-svc:v11
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GRPC_PORT
+              value: "8080"
+            - name: PROM_PORT
+              value: "8801"
+          ports:
+            - containerPort: 8080
+              name: grpc
+              protocol: TCP
+            - containerPort: 8801
+              name: prom
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: voting-svc
+  namespace: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
+spec:
+  selector:
+    app: voting-svc
+  ports:
+    - name: grpc
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: prom
+      port: 8801
+      targetPort: 8801
+      protocol: TCP
+---
+# VoteBot continuously generates HTTP traffic to the web API (pod-to-pod).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vote-bot
+  namespace: emojivoto
+  labels:
+    app.kubernetes.io/name: vote-bot
+    app.kubernetes.io/part-of: emojivoto
+    app.kubernetes.io/version: v11
+    demo: roadshow
+    repo: demo-applications
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vote-bot
+      version: v11
+  template:
+    metadata:
+      labels:
+        app: vote-bot
+        version: v11
+        demo: roadshow
+        repo: demo-applications
+    spec:
+      containers:
+        - name: vote-bot
+          image: docker.l5d.io/buoyantio/emojivoto-web:v11
+          imagePullPolicy: IfNotPresent
+          command:
+            - emojivoto-vote-bot
+          env:
+            - name: WEB_HOST
+              value: web-svc.emojivoto:80
+          resources:
+            requests:
+              cpu: 10m

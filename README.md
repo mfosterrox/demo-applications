@@ -39,10 +39,10 @@ Check the status of all deployments:
 
 ```bash
 # List all namespaces
-kubectl get namespaces | grep -E "(apache-struts|dvwa|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
+kubectl get namespaces | grep -E "(apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
 
 # Check pods across all demo namespaces
-kubectl get pods --all-namespaces | grep -E "(apache-struts|dvwa|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
+kubectl get pods --all-namespaces | grep -E "(apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
 
 # Check deployments in a specific namespace
 kubectl get deployments -n juice-shop
@@ -73,6 +73,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 - **apache-struts** - Apache Struts vulnerable application
 - **dvwa** - Damn Vulnerable Web Application
 - **dvwa-hummingbird** - DVWA with Hummingbird integration
+- **emojivoto** - Buoyant emoji voting demo (public `docker.l5d.io/buoyantio/*`; vote-bot generates traffic)
 - **juice-shop** - OWASP Juice Shop
 - **log4shell** - Log4Shell vulnerability demonstration
 - **medical-application** - Patient Portal medical application
@@ -90,6 +91,7 @@ k8s-deployment-manifests/
 ├── apache-struts/        # Apache Struts manifests
 ├── dvwa/                 # DVWA manifests
 ├── dvwa-hummingbird/     # DVWA Hummingbird manifests
+├── emojivoto/            # Emojivoto (web, emoji, voting, vote-bot)
 ├── juice-shop/           # Juice Shop manifests
 ├── log4shell/            # Log4Shell manifests
 ├── medical-application/  # Medical app (matches demo-apps layout)
@@ -98,15 +100,17 @@ k8s-deployment-manifests/
 │   ├── medical/everything.yml
 │   ├── operations/everything.yml
 │   └── payments/everything.yml
-scripts/
-├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
-├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
-└── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
 ├── nodejs-goof-vuln-main/# Node.js Goof manifests
 ├── skupper-demo/         # Skupper demo manifests
 ├── skupper-demo-hummingbird/ # Skupper Hummingbird manifests
 ├── web-ctf-container/    # Web CTF manifests
 └── webgoat/              # WebGoat manifests
+scripts/
+├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
+├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
+└── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
+image-builds/
+└── emojivoto/              # Vendored BuoyantIO/emojivoto source + Dockerfiles
 ```
 
 ## Notes
