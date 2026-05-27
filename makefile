@@ -963,6 +963,13 @@ push-emojivoto:
 
 build-push-emojivoto: build-emojivoto push-emojivoto
 
+# Pull docker.io/buoyantio/emojivoto-*:v11, retag to quay.io/$(TEAM_NAME)/*:$(VERSION), push.
+# Run on bastion after: podman login docker.io && podman login quay.io
+mirror-emojivoto-to-quay:
+	@chmod +x scripts/mirror-emojivoto-to-quay.sh
+	@TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) PUSH=1 \
+		scripts/mirror-emojivoto-to-quay.sh
+
 update-emojivoto-manifests:
 	@echo "Updating emojivoto image refs to quay.io/$(TEAM_NAME)/emojivoto-*:$(VERSION)"
 	@sed -E -i.bak \

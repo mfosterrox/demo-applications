@@ -1,9 +1,18 @@
 # Emojivoto — microservice voting demo with automatic traffic from vote-bot.
 # Upstream: https://github.com/BuoyantIO/emojivoto (Apache-2.0)
 #
-# Images: public Buoyant builds (same as kustomize/deployment). vote-bot reuses emojivoto-web.
-# Custom Quay images: build image-builds/emojivoto, then make update-emojivoto-manifests TEAM_NAME=... VERSION=...
+# Images: quay.io/mfoster/emojivoto-*:0.1.0 — mirror 3 images (web, emoji-svc, voting-svc); vote-bot uses web.
+# scripts/mirror-emojivoto-to-quay.sh on bastion after: podman login docker.io && podman login quay.io
 
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: emojivoto
+  labels:
+    demo: roadshow
+    repo: demo-applications
+    app.kubernetes.io/part-of: emojivoto
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -43,8 +52,8 @@ spec:
       serviceAccountName: web
       containers:
         - name: web-svc
-          image: docker.l5d.io/buoyantio/emojivoto-web:v11
-          imagePullPolicy: IfNotPresent
+          image: quay.io/mfoster/emojivoto-web:0.1.0
+          imagePullPolicy: Always
           env:
             - name: WEB_PORT
               value: "8080"
@@ -119,8 +128,8 @@ spec:
       serviceAccountName: emoji
       containers:
         - name: emoji-svc
-          image: docker.l5d.io/buoyantio/emojivoto-emoji-svc:v11
-          imagePullPolicy: IfNotPresent
+          image: quay.io/mfoster/emojivoto-emoji-svc:0.1.0
+          imagePullPolicy: Always
           env:
             - name: GRPC_PORT
               value: "8080"
@@ -197,8 +206,8 @@ spec:
       serviceAccountName: voting
       containers:
         - name: voting-svc
-          image: docker.l5d.io/buoyantio/emojivoto-voting-svc:v11
-          imagePullPolicy: IfNotPresent
+          image: quay.io/mfoster/emojivoto-voting-svc:0.1.0
+          imagePullPolicy: Always
           env:
             - name: GRPC_PORT
               value: "8080"
@@ -265,8 +274,8 @@ spec:
     spec:
       containers:
         - name: vote-bot
-          image: docker.l5d.io/buoyantio/emojivoto-web:v11
-          imagePullPolicy: IfNotPresent
+          image: quay.io/mfoster/emojivoto-web:0.1.0
+          imagePullPolicy: Always
           command:
             - emojivoto-vote-bot
           env:

@@ -60,23 +60,26 @@ cp quay.env.example quay.env   # edit TEAM_NAME, VERSION
 source quay.env && PUSH=1 ./build-images.sh
 ```
 
-## Deploy
+## Deploy (Quay mirror — recommended for workshops)
 
-Manifests use **public upstream images** (no Quay build required):
-
-```bash
-kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-emojivoto.yaml
-kubectl apply -f k8s-deployment-manifests/emojivoto/
-```
-
-Images: `docker.l5d.io/buoyantio/emojivoto-{web,emoji-svc,voting-svc}:v11` (same as [Buoyant kustomize](https://github.com/BuoyantIO/emojivoto/kustomize/deployment)).
-
-After building and pushing to your Quay org:
+Clusters often hit Docker Hub rate limits on `docker.l5d.io` / `docker.io/buoyantio`. Mirror once on the bastion:
 
 ```bash
-make update-emojivoto-manifests TEAM_NAME=myorg VERSION=0.1.0
-kubectl apply -f k8s-deployment-manifests/emojivoto/
+podman login docker.io    # required to avoid toomanyrequests
+podman login quay.io
+
+# From repo root
+make mirror-emojivoto-to-quay
+# or: ./scripts/mirror-emojivoto-to-quay.sh
 ```
+
+Create public Quay repos: `emojivoto-web`, `emojivoto-emoji-svc`, `emojivoto-voting-svc`.
+
+```bash
+oc apply -f k8s-deployment-manifests/emojivoto/
+```
+
+Manifests use `quay.io/mfoster/emojivoto-*:0.1.0` (namespace included in `everything.yml`).
 
 OpenShift route:
 

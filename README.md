@@ -73,7 +73,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 - **apache-struts** - Apache Struts vulnerable application
 - **dvwa** - Damn Vulnerable Web Application
 - **dvwa-hummingbird** - DVWA with Hummingbird integration
-- **emojivoto** - Buoyant emoji voting demo (public `docker.l5d.io/buoyantio/*`; vote-bot generates traffic)
+- **emojivoto** - Buoyant emoji voting demo (mirror to Quay: `make mirror-emojivoto-to-quay`; vote-bot generates traffic)
 - **juice-shop** - OWASP Juice Shop
 - **log4shell** - Log4Shell vulnerability demonstration
 - **medical-application** - Patient Portal medical application
