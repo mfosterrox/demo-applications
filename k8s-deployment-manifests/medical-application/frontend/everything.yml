@@ -141,6 +141,7 @@ spec:
 
 # Deployment named "wordpress"
 # Listens on :80
+# OpenShift: use non-root + no custom fsGroup (restricted-v2 rejects fsGroup 1001010001)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -158,6 +159,10 @@ spec:
      labels:
        app: wordpress
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - image: wordpress:latest
         imagePullPolicy: Always
@@ -165,6 +170,14 @@ spec:
         ports:
         - containerPort: 80
           protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+          runAsUser: 33
+          runAsGroup: 33
 
 ---
 
