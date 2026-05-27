@@ -92,7 +92,12 @@ k8s-deployment-manifests/
 ├── dvwa-hummingbird/     # DVWA Hummingbird manifests
 ├── juice-shop/           # Juice Shop manifests
 ├── log4shell/            # Log4Shell manifests
-├── medical-application/  # Medical application manifests
+├── medical-application/  # Medical app (matches demo-apps layout)
+│   ├── backend/everything.yml
+│   ├── frontend/everything.yml
+│   ├── medical/everything.yml
+│   ├── operations/everything.yml
+│   └── payments/everything.yml
 ├── nodejs-goof-vuln-main/# Node.js Goof manifests
 ├── skupper-demo/         # Skupper demo manifests
 ├── skupper-demo-hummingbird/ # Skupper Hummingbird manifests
