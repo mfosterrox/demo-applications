@@ -13,10 +13,11 @@
 
 set -euo pipefail
 
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=medical-application-netflow-flows.sh
+source "${SCRIPT_DIR}/medical-application-netflow-flows.sh"
+
 readonly SCRIPT_NAME="${0##*/}"
-readonly PROBE_POD_PREFIX="medical-netcheck"
-readonly CURL_IMAGE="${CURL_IMAGE:-curlimages/curl:8.8.0}"
-readonly PROBE_NAMESPACE="${NAMESPACE:-frontend}"
 
 WAIT_TIMEOUT=0
 SKIP_CONNECTIVITY=false
@@ -70,24 +71,6 @@ readonly -a REQUIRED_SERVICES=(
     "operations/pupper-master-service"
 )
 
-# Expected flows from netflow -connect in everything.yml
-# Format: "target_host:port|description|required(yes|no)"
-readonly -a EXPECTED_FLOWS=(
-    "asset-cache-service.frontend.svc.cluster.local:8080|frontend: tls-proxy → asset-cache|yes"
-    "wordpress-service.frontend.svc.cluster.local:80|frontend: tls-proxy → wordpress|yes"
-    "api-server-service.backend.svc.cluster.local:9001|backend: varnish → api-server|yes"
-    "backend-atlas-service.backend.svc.cluster.local:8080|backend: api-server → backend-atlas|yes"
-    "postgres-service.backend.svc.cluster.local:5432|backend: api-server → postgres|yes"
-    "gateway-service.payments.svc.cluster.local:7777|backend → payments: api-server → gateway|yes"
-    "visa-processor-service.payments.svc.cluster.local:8080|payments: gateway → visa-processor|yes"
-    "mastercard-processor-service.payments.svc.cluster.local:8080|payments: gateway → mastercard-processor|yes"
-    "visa-processor-service.payments.svc.cluster.local:8080|operations → payments: jump-host → visa|yes"
-    "pupper-master-service.operations.svc.cluster.local:8140|operations: jump-host → puppet-master|yes"
-    "patient-db-service.medical.svc.cluster.local:8080|medical: reporting → patient-db (deny-all NP may block)|no"
-    "reporting-service.medical.svc.cluster.local:8080|medical: patient-db → reporting (deny-all NP may block)|no"
-    "patient-db-service.medical.svc.cluster.local:8080|operations → medical: jump-host → patient-db (deny-all NP may block)|no"
-)
-
 print_info()  { echo -e "${GREEN}[INFO]${NC} $*"; }
 print_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; WARN_COUNT=$((WARN_COUNT + 1)); }
 print_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
@@ -100,32 +83,20 @@ ${SCRIPT_NAME} — verify medical-application network health after deploy
 Options:
   -w, --wait SECONDS       Wait for deployments to become Available (default: 0)
   --skip-connectivity      Only check namespaces, deployments, endpoints, netflow pods
-  -n, --namespace NAME     Namespace for the probe pod (default: ${PROBE_NAMESPACE})
   -h, --help               Show this help
 
 Checks:
   1. Medical-application namespaces and deployments are Available
   2. Services have ready endpoints
   3. Netflow (-connect) workloads are running
-  4. TCP reachability for paths defined in everything.yml manifests
+  4. Pod-to-pod TCP dials from source containers (-connect targets via oc exec)
 
-Optional flows (medical namespace / deny-all NetworkPolicy) are reported as warnings only.
+Medical-namespace flows may warn if deny-all NetworkPolicy blocks cross-pod traffic.
 EOF
 }
 
 resolve_kubectl() {
-    if [[ -n "${KUBECTL:-}" ]]; then
-        echo "${KUBECTL}"
-        return
-    fi
-    if command -v oc >/dev/null 2>&1; then
-        echo "oc"
-    elif command -v kubectl >/dev/null 2>&1; then
-        echo "kubectl"
-    else
-        print_error "Neither oc nor kubectl found in PATH"
-        exit 1
-    fi
+    medical_resolve_kubectl
 }
 
 parse_args() {
@@ -133,7 +104,6 @@ parse_args() {
         case "$1" in
             -w|--wait) WAIT_TIMEOUT="$2"; shift 2 ;;
             --skip-connectivity) SKIP_CONNECTIVITY=true; shift ;;
-            -n|--namespace) PROBE_NAMESPACE="$2"; shift 2 ;;
             -h|--help) usage; exit 0 ;;
             *) print_error "Unknown option: $1"; usage >&2; exit 1 ;;
         esac
@@ -281,67 +251,31 @@ check_netflow_pods() {
     done
 }
 
-probe_pod_name() {
-    echo "${PROBE_POD_PREFIX}-$$"
-}
-
-create_probe_pod() {
-    local kube="$1"
-    local pod="$2"
-    "${kube}" run "${pod}" \
-        -n "${PROBE_NAMESPACE}" \
-        --restart=Never \
-        --image="${CURL_IMAGE}" \
-        --command -- sleep 600 \
-        >/dev/null
-    "${kube}" wait --for=condition=Ready "pod/${pod}" \
-        -n "${PROBE_NAMESPACE}" --timeout=120s >/dev/null
-}
-
-delete_probe_pod() {
-    local kube="$1"
-    local pod="$2"
-    "${kube}" delete pod "${pod}" -n "${PROBE_NAMESPACE}" --ignore-not-found --wait=false >/dev/null 2>&1 || true
-}
-
-probe_tcp() {
-    local kube="$1"
-    local pod="$2"
-    local host_port="$3"
-    local host="${host_port%:*}"
-    local port="${host_port##*:}"
-    if "${kube}" exec -n "${PROBE_NAMESPACE}" "${pod}" -- \
-        curl -s -m 5 "telnet://${host}:${port}" >/dev/null 2>&1; then
-        echo "ok"
-    else
-        echo "fail"
-    fi
-}
-
 check_connectivity() {
     local kube="$1"
-    print_step "TCP connectivity (paths from everything.yml)"
-    local pod
-    pod=$(probe_pod_name)
-    trap 'delete_probe_pod "'"${kube}"'" "'"${pod}"'"' RETURN
-    create_probe_pod "${kube}" "${pod}"
-    print_info "Probing from ${PROBE_NAMESPACE}/${pod}"
+    print_step "Pod-to-pod flows (exec from source pods, -connect targets)"
+    local ok fail warn line status rest msg detail
 
-    local entry target desc required result
-    for entry in "${EXPECTED_FLOWS[@]}"; do
-        target="${entry%%|*}"
-        rest="${entry#*|}"
-        desc="${rest%|*}"
-        required="${rest##*|}"
-        result=$(probe_tcp "${kube}" "${pod}" "${target}")
-        if [[ "${required}" == "yes" ]]; then
-            record_required "${result}" "${desc} (${target})"
-        else
-            record_optional "${result}" "${desc} (${target})"
-        fi
-    done
-    delete_probe_pod "${kube}" "${pod}"
-    trap - RETURN
+    while IFS= read -r line; do
+        [[ -z "${line}" ]] && continue
+        status="${line%%|*}"
+        rest="${line#*|}"
+        msg="${rest%%|*}"
+        detail="${rest#*|}"
+        case "${status}" in
+            OK)
+                record_required "ok" "${msg} ${detail}"
+                ;;
+            FAIL)
+                record_required "fail" "${msg} ${detail}"
+                ;;
+            WARN)
+                record_optional "fail" "${msg} ${detail}"
+                ;;
+        esac
+    done < <(medical_run_connect_flows "${kube}" ok fail warn)
+
+    print_info "Flow probes: ${ok} ok, ${fail} required failed, ${warn} warnings"
 }
 
 print_summary() {
@@ -357,7 +291,7 @@ print_summary() {
     echo
     if [[ "${REQUIRED_FAIL}" -eq 0 ]]; then
         print_info "Medical-application network verification PASSED"
-        print_info "Netflow pods generate east-west traffic continuously; optional: run scripts/generate-medical-application-traffic.sh for extra HTTP probes"
+        print_info "Run scripts/generate-medical-application-traffic.sh to repeat -connect dials for RHACS Network Graph demos"
         return 0
     fi
     print_error "Medical-application network verification FAILED"

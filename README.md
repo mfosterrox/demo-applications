@@ -99,8 +99,9 @@ k8s-deployment-manifests/
 │   ├── operations/everything.yml
 │   └── payments/everything.yml
 scripts/
-├── generate-medical-application-traffic.sh  # Optional extra HTTP/TCP probes
-└── verify-medical-application-network.sh    # Post-deploy network health check
+├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
+├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
+└── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
 ├── nodejs-goof-vuln-main/# Node.js Goof manifests
 ├── skupper-demo/         # Skupper demo manifests
 ├── skupper-demo-hummingbird/ # Skupper Hummingbird manifests
