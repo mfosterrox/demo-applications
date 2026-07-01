@@ -4,7 +4,7 @@ VERSION := 0.1.0
 GENAI_STACK_COMPONENTS := genai-stack-bot genai-stack-loader genai-stack-pdf-bot genai-stack-api genai-stack-front-end genai-stack-pull-model
 # Emojivoto is built separately (one source tree, four images) — see build-emojivoto / EMOJIVOTO_IMAGES
 EMOJIVOTO_IMAGES := emojivoto-svc-base emojivoto-web emojivoto-emoji-svc emojivoto-voting-svc
-APPLICATIONS:= apache-struts dvwa dvwa-hummingbird log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat $(GENAI_STACK_COMPONENTS)
+APPLICATIONS:= apache-struts dvwa dvwa-hummingbird hi-python-demo log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat $(GENAI_STACK_COMPONENTS)
 MANIFEST_DIR ?= deployment-manifests
 GENAI_STACK_DIR := image-builds/genai-stack
 
@@ -670,7 +670,7 @@ push:
 	fi
 
 # Podman Compose targets
-PODMAN_APPS := apache-struts dvwa dvwa-hummingbird juice-shop log4shell nodejs-goof-vuln-main skupper-demo skupper-demo-hummingbird web-ctf-container webgoat
+PODMAN_APPS := apache-struts dvwa dvwa-hummingbird hi-python-demo juice-shop log4shell nodejs-goof-vuln-main skupper-demo skupper-demo-hummingbird web-ctf-container webgoat
 PODMAN_MANIFEST_DIR := podman-manifests
 
 podman-up:

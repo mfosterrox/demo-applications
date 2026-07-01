@@ -24,7 +24,7 @@ export GOMODCACHE := $(EMOJIVOTO_GOMODCACHE)
 export PATH := $(EMOJIVOTO_GOBIN):$(PATH)
 
 protoc:
-	@mkdir -p "$(EMOJIVOTO_GOMODCACHE)" "$(EMOJIVOTO_GOBIN)" "$(GOPATH)"
+	@mkdir -p "$(EMOJIVOTO_GOMODCACHE)" "$(EMOJIVOTO_GOBIN)" "$(GOPATH)" gen
 	@command -v protoc-gen-go >/dev/null 2>&1 || ( \
 		echo "Installing protoc-gen-go into $(EMOJIVOTO_GOBIN)..." >&2; \
 		GOBIN="$(EMOJIVOTO_GOBIN)" GOPATH="$(GOPATH)" GOMODCACHE="$(EMOJIVOTO_GOMODCACHE)" \
@@ -51,6 +51,7 @@ build-multi-arch:
 		-f ../Dockerfile-multi-arch --platform linux/amd64,linux/arm64,linux/arm/v7 --push
 
 compile:
+	@mkdir -p $(target_dir)
 	GOOS=linux go build -v -o $(target_dir)/$(svc_name) cmd/server.go
 
 test:

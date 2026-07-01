@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hi-python-layered
+  namespace: hummingbird-demo
+  labels:
+    app: hi-python-layered
+    demo: hummingbird-layered
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hi-python-layered
+  template:
+    metadata:
+      labels:
+        app: hi-python-layered
+        demo: hummingbird-layered
+        repo: demo-apps
+    spec:
+      containers:
+        - name: app
+          image: image-registry.openshift-image-registry.svc:5000/hummingbird-demo/hi-python-demo:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hi-python-layered
+  namespace: hummingbird-demo
+  labels:
+    app: hi-python-layered
+    repo: demo-apps
+spec:
+  selector:
+    app: hi-python-layered
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: hi-python-layered
+  namespace: hummingbird-demo
+  labels:
+    app: hi-python-layered
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: hi-python-layered
+  port:
+    targetPort: http

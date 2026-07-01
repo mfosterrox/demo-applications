@@ -73,6 +73,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 - **apache-struts** - Apache Struts vulnerable application
 - **dvwa** - Damn Vulnerable Web Application
 - **dvwa-hummingbird** - DVWA with Hummingbird integration
+- **hummingbird-demo** - Project Hummingbird Python base + layered app (RHACS base vs application CVE demo)
 - **emojivoto** - Buoyant emoji voting demo (mirror to Quay: `make mirror-emojivoto-to-quay`; vote-bot generates traffic)
 - **juice-shop** - OWASP Juice Shop
 - **log4shell** - Log4Shell vulnerability demonstration
@@ -91,6 +92,7 @@ k8s-deployment-manifests/
 ├── apache-struts/        # Apache Struts manifests
 ├── dvwa/                 # DVWA manifests
 ├── dvwa-hummingbird/     # DVWA Hummingbird manifests
+├── hummingbird-demo/     # Hummingbird Python base + layered build (BuildConfig)
 ├── emojivoto/            # Emojivoto (web, emoji, voting, vote-bot)
 ├── juice-shop/           # Juice Shop manifests
 ├── log4shell/            # Log4Shell manifests
