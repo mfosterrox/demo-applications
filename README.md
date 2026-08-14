@@ -39,10 +39,10 @@ Check the status of all deployments:
 
 ```bash
 # List all namespaces
-kubectl get namespaces | grep -E "(apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
+kubectl get namespaces | grep -E "(acs-fam-demo|apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
 
 # Check pods across all demo namespaces
-kubectl get pods --all-namespaces | grep -E "(apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
+kubectl get pods --all-namespaces | grep -E "(acs-fam-demo|apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
 
 # Check deployments in a specific namespace
 kubectl get deployments -n juice-shop
@@ -70,6 +70,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 
 ## Available Applications
 
+- **acs-fam-demo** - UBI keep-alive workload for RHACS File Activity Monitoring (FAM) labs
 - **apache-struts** - Apache Struts vulnerable application
 - **dvwa** - Damn Vulnerable Web Application
 - **dvwa-hummingbird** - DVWA with Hummingbird integration
@@ -89,10 +90,11 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 ```
 k8s-deployment-manifests/
 ├── -namespaces/          # Namespace definitions
+├── acs-fam-demo/         # UBI FAM trigger (fam-target)
 ├── apache-struts/        # Apache Struts manifests
 ├── dvwa/                 # DVWA manifests
 ├── dvwa-hummingbird/     # DVWA Hummingbird manifests
-├── hummingbird-demo/     # Hummingbird Python base + layered build (BuildConfig)
+├── hummingbird-demo/     # Hummingbird Python base + layered deployment (Quay image)
 ├── emojivoto/            # Emojivoto (web, emoji, voting, vote-bot)
 ├── juice-shop/           # Juice Shop manifests
 ├── log4shell/            # Log4Shell manifests
