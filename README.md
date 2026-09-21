@@ -158,6 +158,7 @@ Deploy:
 
 ```bash
 kubectl apply -f vulnmgmt/namespaces.yaml
+kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/demo-dev namespace/demo-stage namespace/demo-prod namespace/demo-platform --timeout=90s
 kubectl apply -R -f vulnmgmt/
 ```
 
