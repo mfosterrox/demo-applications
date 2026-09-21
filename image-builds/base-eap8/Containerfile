@@ -1,0 +1,4 @@
+FROM registry.redhat.io/amq-streams/kafka-38-rhel9:2.8.0
+LABEL org.opencontainers.image.title="Demo Base: AMQ Streams Kafka (Red Hat product with content manifests)"
+LABEL org.opencontainers.image.version="1.0"
+CMD ["sleep", "infinity"]

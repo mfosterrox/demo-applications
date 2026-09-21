@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-dev
+  labels:
+    demo: vulnmgmt
+    stage: dev
+    team: team-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-stage
+  labels:
+    demo: vulnmgmt
+    stage: stage
+    team: team-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-prod
+  labels:
+    demo: vulnmgmt
+    stage: prod
+    team: team-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-platform
+  labels:
+    demo: vulnmgmt
+    team: platform

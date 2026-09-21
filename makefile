@@ -977,3 +977,21 @@ update-emojivoto-manifests:
 		k8s-deployment-manifests/emojivoto/everything.yml
 	@rm -f k8s-deployment-manifests/emojivoto/everything.yml.bak
 	@echo "Done. Review k8s-deployment-manifests/emojivoto/everything.yml"
+
+# RHACS vulnerability-management shop demo (image-builds/base-* and shop-*).
+# Requires podman login registry.redhat.io (UBI / AMQ Streams) and quay.io for push.
+# JARs are downloaded at build time (gitignored); see image-builds/shop-api/download-jars.sh
+.PHONY: build-vulnmgmt push-vulnmgmt copy-vulnmgmt-prod-mirror
+
+build-vulnmgmt:
+	@chmod +x scripts/build-vulnmgmt.sh image-builds/shop-api/download-jars.sh
+	@TEAM_NAME=$(TEAM_NAME) scripts/build-vulnmgmt.sh build
+
+push-vulnmgmt:
+	@chmod +x scripts/build-vulnmgmt.sh
+	@TEAM_NAME=$(TEAM_NAME) scripts/build-vulnmgmt.sh push
+
+# Copy shop-api:1.0.0 / shop-web:1.0.0 to prod-mirror-* with the same digest (skopeo, else podman tag+push).
+copy-vulnmgmt-prod-mirror:
+	@chmod +x scripts/build-vulnmgmt.sh
+	@TEAM_NAME=$(TEAM_NAME) scripts/build-vulnmgmt.sh copy-prod-mirror

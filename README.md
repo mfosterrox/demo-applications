@@ -82,6 +82,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 - **nodejs-goof-vuln-main** - Node.js Goof vulnerable application
 - **skupper-demo** - Skupper demo application
 - **skupper-demo-hummingbird** - Skupper demo with Hummingbird
+- **vulnmgmt** - RHACS vulnerability-management shop demo (dev/stage/prod + platform negative control)
 - **web-ctf-container** - Web CTF container
 - **webgoat** - OWASP WebGoat
 
@@ -107,14 +108,56 @@ k8s-deployment-manifests/
 ├── nodejs-goof-vuln-main/# Node.js Goof manifests
 ├── skupper-demo/         # Skupper demo manifests
 ├── skupper-demo-hummingbird/ # Skupper Hummingbird manifests
+├── vulnmgmt/             # RHACS vulnmgmt shop (demo-dev/stage/prod/platform)
 ├── web-ctf-container/    # Web CTF manifests
 └── webgoat/              # WebGoat manifests
 scripts/
 ├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
 ├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
-└── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
+├── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
+└── build-vulnmgmt.sh                          # Build/push vulnmgmt images to Quay
 image-builds/
-└── emojivoto/              # Vendored BuoyantIO/emojivoto source + Dockerfiles
+├── emojivoto/              # Vendored BuoyantIO/emojivoto source + Dockerfiles
+├── base-ubi9-openjdk/      # Vulnmgmt shop-web base (UBI9 OpenJDK 17)
+├── base-eap8/              # Vulnmgmt shop-api base (AMQ Streams Kafka, content manifests)
+├── base-eap8-repacked/     # Negative control: Kafka JARs copied onto UBI (no content manifests)
+├── shop-api/               # Shop API layers (download JARs; not committed)
+└── shop-web/               # Shop Web layer on UBI OpenJDK
+```
+
+## RHACS vulnerability management (vulnmgmt)
+
+Shop demo images and workloads for RHACS vulnerability-management labs. Manifests live in `k8s-deployment-manifests/vulnmgmt/` and use hardcoded `quay.io/mfoster` image refs.
+
+Images:
+
+- `quay.io/mfoster/base-ubi9-openjdk:1.0` - shop-web base
+- `quay.io/mfoster/base-eap8:1.0` - shop-api base (Red Hat product with content manifests)
+- `quay.io/mfoster/base-eap8-repacked:1.0` - negative control (JARs copied, no content manifests)
+- `quay.io/mfoster/shop-api:1.0.0` - vulnerable Log4j 2.14.1 + commons-text 1.9 (also tagged `feature-x-abc1234`)
+- `quay.io/mfoster/shop-api:1.1.0` - patched Log4j 2.17.1
+- `quay.io/mfoster/shop-web:1.0.0`
+- `quay.io/mfoster/prod-mirror-shop-api:1.0.0` / `prod-mirror-shop-web:1.0.0` - same digest as the `1.0.0` shop images
+
+JARs are gitignored. Download them before a local build:
+
+```bash
+./image-builds/shop-api/download-jars.sh
+```
+
+Rebuild and push (requires `podman login registry.redhat.io` and `podman login quay.io`):
+
+```bash
+make build-vulnmgmt
+make push-vulnmgmt
+make copy-vulnmgmt-prod-mirror
+```
+
+Deploy:
+
+```bash
+kubectl apply -f k8s-deployment-manifests/vulnmgmt/namespaces.yaml
+kubectl apply -R -f k8s-deployment-manifests/vulnmgmt/
 ```
 
 ## Notes

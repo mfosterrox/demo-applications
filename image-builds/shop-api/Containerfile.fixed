@@ -1,0 +1,8 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+LABEL org.opencontainers.image.title="Shop API"
+LABEL org.opencontainers.image.version="1.1.0"
+USER root
+COPY lib-fixed/*.jar /deployments/lib/
+USER 185
+CMD ["sleep", "infinity"]

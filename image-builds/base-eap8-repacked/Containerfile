@@ -1,0 +1,9 @@
+FROM registry.redhat.io/amq-streams/kafka-38-rhel9:2.8.0 AS rh-source
+FROM registry.redhat.io/ubi9/openjdk-17-runtime:1.18-4
+LABEL org.opencontainers.image.title="Demo Base: Repacked JARs (no content manifests - negative control)"
+LABEL org.opencontainers.image.version="1.0"
+USER root
+COPY --from=rh-source /opt/kafka/libs /opt/kafka/libs
+COPY --from=rh-source /opt/cruise-control/libs /opt/cruise-control/libs
+USER 185
+CMD ["sleep", "infinity"]
