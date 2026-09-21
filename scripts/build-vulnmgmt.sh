@@ -55,54 +55,65 @@ download_jars() {
   "${ROOT}/image-builds/shop-api/download-jars.sh"
 }
 
-build_images() {
-  download_jars
+REUSE_SH="${ROOT}/scripts/quay-reuse.sh"
 
-  echo "==> Building ${BASE_OPENJDK}"
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" \
+maybe_build() {
+  local image="$1"
+  local dockerfile="$2"
+  shift 2
+  echo "==> ${image}"
+  if bash "${REUSE_SH}" skip-build "${image}" "${dockerfile}"; then
+    return 0
+  fi
+  "${CONTAINER_CMD}" build --platform "${PLATFORM}" -t "${image}" "$@"
+}
+
+build_images() {
+  echo "==> Vulnmgmt shop images (${PLATFORM})"
+  maybe_build "${BASE_OPENJDK}" image-builds/base-ubi9-openjdk/Containerfile \
     -f image-builds/base-ubi9-openjdk/Containerfile \
-    -t "${BASE_OPENJDK}" \
     image-builds/base-ubi9-openjdk
 
-  echo "==> Building ${BASE_EAP8}"
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" \
+  maybe_build "${BASE_EAP8}" image-builds/base-eap8/Containerfile \
     -f image-builds/base-eap8/Containerfile \
-    -t "${BASE_EAP8}" \
     image-builds/base-eap8
 
-  echo "==> Building ${BASE_EAP8_REPACKED}"
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" \
+  maybe_build "${BASE_EAP8_REPACKED}" image-builds/base-eap8-repacked/Containerfile \
     -f image-builds/base-eap8-repacked/Containerfile \
-    -t "${BASE_EAP8_REPACKED}" \
     image-builds/base-eap8-repacked
 
-  echo "==> Building ${SHOP_API_100}"
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" \
+  local need_shop=0
+  if ! bash "${REUSE_SH}" skip-build "${SHOP_API_100}" image-builds/shop-api/Containerfile >/dev/null; then
+    need_shop=1
+  fi
+  if ! bash "${REUSE_SH}" skip-build "${SHOP_API_110}" image-builds/shop-api/Containerfile.fixed >/dev/null; then
+    need_shop=1
+  fi
+  if [[ "${need_shop}" -eq 1 ]]; then
+    download_jars
+  fi
+
+  maybe_build "${SHOP_API_100}" image-builds/shop-api/Containerfile \
     --build-arg "BASE_IMAGE=${BASE_EAP8}" \
     --build-arg APP_VERSION=1.0.0 \
     -f image-builds/shop-api/Containerfile \
-    -t "${SHOP_API_100}" \
     image-builds/shop-api
 
   echo "==> Tagging ${SHOP_API_FEATURE} from ${SHOP_API_100}"
   "${CONTAINER_CMD}" tag "${SHOP_API_100}" "${SHOP_API_FEATURE}"
 
-  echo "==> Building ${SHOP_API_110}"
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" \
+  maybe_build "${SHOP_API_110}" image-builds/shop-api/Containerfile.fixed \
     --build-arg "BASE_IMAGE=${BASE_EAP8}" \
     -f image-builds/shop-api/Containerfile.fixed \
-    -t "${SHOP_API_110}" \
     image-builds/shop-api
 
-  echo "==> Building ${SHOP_WEB}"
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" \
+  maybe_build "${SHOP_WEB}" image-builds/shop-web/Containerfile \
     --build-arg "BASE_IMAGE=${BASE_OPENJDK}" \
     --build-arg APP_VERSION=1.0.0 \
     -f image-builds/shop-web/Containerfile \
-    -t "${SHOP_WEB}" \
     image-builds/shop-web
 
-  echo "==> Built:"
+  echo "==> Built or reused:"
   for img in "${PUSH_IMAGES[@]}"; do
     echo "  ${img}"
   done
@@ -110,8 +121,12 @@ build_images() {
 
 push_images() {
   echo "==> Pushing vulnmgmt images to ${REG}"
+  local img
   for img in "${PUSH_IMAGES[@]}"; do
-    echo "==> Push ${img}"
+    echo "==> ${img}"
+    if bash "${REUSE_SH}" skip-push "${img}"; then
+      continue
+    fi
     "${CONTAINER_CMD}" push "${img}"
   done
 }

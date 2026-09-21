@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=buoyantio/emojivoto-svc-base:v12
-FROM ${BASE_IMAGE}
+FROM --platform=linux/amd64 ${BASE_IMAGE}
 
 ARG svc_name
 

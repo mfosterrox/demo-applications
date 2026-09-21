@@ -1,6 +1,9 @@
 IMAGE_TAG ?= 0.1.0
 REGISTRY_PREFIX ?= quay.io/mfoster
 CONTAINER_CMD ?= podman
+PLATFORM ?= linux/amd64
+GOOS ?= linux
+GOARCH ?= amd64
 BASE_IMAGE ?= $(REGISTRY_PREFIX)/emojivoto-svc-base:$(IMAGE_TAG)
 
 .PHONY: package protoc test
@@ -40,7 +43,7 @@ protoc:
 package: protoc compile build-container
 
 build-container:
-	$(CONTAINER_CMD) build .. -t "$(REGISTRY_PREFIX)/$(svc_name):$(IMAGE_TAG)" \
+	$(CONTAINER_CMD) build --platform $(PLATFORM) .. -t "$(REGISTRY_PREFIX)/$(svc_name):$(IMAGE_TAG)" \
 		--build-arg svc_name=$(svc_name) \
 		--build-arg BASE_IMAGE=$(BASE_IMAGE)
 
@@ -52,7 +55,7 @@ build-multi-arch:
 
 compile:
 	@mkdir -p $(target_dir)
-	GOOS=linux go build -v -o $(target_dir)/$(svc_name) cmd/server.go
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -v -o $(target_dir)/$(svc_name) cmd/server.go
 
 test:
 	go test ./...

@@ -34,11 +34,13 @@ if [[ -z "${CONTAINER_CMD}" ]]; then
   fi
 fi
 
-export REGISTRY_PREFIX IMAGE_TAG CONTAINER_CMD
-MAKEFLAGS=(REGISTRY_PREFIX="${REGISTRY_PREFIX}" IMAGE_TAG="${IMAGE_TAG}" CONTAINER_CMD="${CONTAINER_CMD}")
+export REGISTRY_PREFIX IMAGE_TAG CONTAINER_CMD PLATFORM
+MAKEFLAGS=(REGISTRY_PREFIX="${REGISTRY_PREFIX}" IMAGE_TAG="${IMAGE_TAG}" CONTAINER_CMD="${CONTAINER_CMD}" PLATFORM="${PLATFORM}" GOARCH=amd64 GOOS=linux)
 
 SERVICES=(emojivoto-web emojivoto-emoji-svc emojivoto-voting-svc)
 BASE_IMAGE="${REGISTRY_PREFIX}/emojivoto-svc-base:${IMAGE_TAG}"
+REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
+REUSE_SH="${REPO_ROOT}/scripts/quay-reuse.sh"
 
 echo "==> Registry:  ${REGISTRY_PREFIX}"
 echo "==> Tag:       ${IMAGE_TAG}"
@@ -46,22 +48,47 @@ echo "==> Platform:  ${PLATFORM}"
 echo "==> Engine:    ${CONTAINER_CMD}"
 echo ""
 
-echo "==> Building base image ${BASE_IMAGE}"
-make "${MAKEFLAGS[@]}" build-base-docker-image
-
 images_to_push=("${BASE_IMAGE}")
 for svc in "${SERVICES[@]}"; do
-  image="${REGISTRY_PREFIX}/${svc}:${IMAGE_TAG}"
-  echo "==> Building ${image} (protoc, compile, container)"
-  # package = protoc + compile (+ package-web for web) + build-container
-  make "${MAKEFLAGS[@]}" -C "${svc}" package BASE_IMAGE="${BASE_IMAGE}"
-  images_to_push+=("${image}")
+  images_to_push+=("${REGISTRY_PREFIX}/${svc}:${IMAGE_TAG}")
 done
+
+should_build=0
+echo "==> Checking registry/local cache for Emojivoto images"
+if [[ -f "${REUSE_SH}" ]]; then
+  if ! bash "${REUSE_SH}" skip-build "${BASE_IMAGE}" "${ROOT}/Dockerfile-base"; then
+    should_build=1
+  fi
+  for svc in "${SERVICES[@]}"; do
+    if ! bash "${REUSE_SH}" skip-build "${REGISTRY_PREFIX}/${svc}:${IMAGE_TAG}" "${ROOT}/Dockerfile"; then
+      should_build=1
+    fi
+  done
+else
+  should_build=1
+fi
+
+if [[ "${should_build}" -eq 0 ]]; then
+  echo "==> Skipping Emojivoto rebuild; images already available"
+else
+  echo "==> Building base image ${BASE_IMAGE}"
+  make "${MAKEFLAGS[@]}" build-base-docker-image
+
+  for svc in "${SERVICES[@]}"; do
+    image="${REGISTRY_PREFIX}/${svc}:${IMAGE_TAG}"
+    echo "==> Building ${image} (protoc, compile, container)"
+    # package = protoc + compile (+ package-web for web) + build-container
+    make "${MAKEFLAGS[@]}" -C "${svc}" package BASE_IMAGE="${BASE_IMAGE}"
+  done
+fi
 
 if [[ "${PUSH}" == "1" ]]; then
   echo ""
   echo "==> Pushing images to ${QUAY_REGISTRY}"
   for image in "${images_to_push[@]}"; do
+    if [[ -f "${REUSE_SH}" ]] && bash "${REUSE_SH}" skip-push "${image}"; then
+      continue
+    fi
     echo "    push ${image}"
     "${CONTAINER_CMD}" push "${image}"
   done

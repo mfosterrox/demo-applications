@@ -115,7 +115,8 @@ scripts/
 ├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
 ├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
 ├── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
-└── build-vulnmgmt.sh                          # Build/push vulnmgmt images to Quay
+├── build-vulnmgmt.sh                          # Build/push vulnmgmt images to Quay
+└── quay-reuse.sh                              # Skip rebuild/push when Quay already has the tag
 image-builds/
 ├── emojivoto/              # Vendored BuoyantIO/emojivoto source + Dockerfiles
 ├── base-ubi9-openjdk/      # Vulnmgmt shop-web base (UBI9 OpenJDK 17)
@@ -145,7 +146,7 @@ JARs are gitignored. Download them before a local build:
 ./image-builds/shop-api/download-jars.sh
 ```
 
-Rebuild and push (requires `podman login registry.redhat.io` and `podman login quay.io`):
+Rebuild and push (requires `podman login registry.redhat.io` and `podman login quay.io`). These images are also included in `make build-tag-and-push`.
 
 ```bash
 make build-vulnmgmt
