@@ -108,9 +108,9 @@ k8s-deployment-manifests/
 ├── nodejs-goof-vuln-main/# Node.js Goof manifests
 ├── skupper-demo/         # Skupper demo manifests
 ├── skupper-demo-hummingbird/ # Skupper Hummingbird manifests
-├── vulnmgmt/             # RHACS vulnmgmt shop (demo-dev/stage/prod/platform)
 ├── web-ctf-container/    # Web CTF manifests
 └── webgoat/              # WebGoat manifests
+vulnmgmt/                 # Opt-in RHACS shop demo (not under k8s-deployment-manifests)
 scripts/
 ├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
 ├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
@@ -127,7 +127,7 @@ image-builds/
 
 ## RHACS vulnerability management (vulnmgmt)
 
-Shop demo images and workloads for RHACS vulnerability-management labs. Manifests live in `k8s-deployment-manifests/vulnmgmt/` and use hardcoded `quay.io/mfoster` image refs.
+Shop demo images and workloads for RHACS vulnerability-management labs. Manifests live in `vulnmgmt/` (repo root), not under `k8s-deployment-manifests/`, so a bulk apply of default workshop manifests does not deploy shop stages. Image refs are `quay.io/mfoster`.
 
 Images:
 
@@ -156,8 +156,8 @@ make copy-vulnmgmt-prod-mirror
 Deploy:
 
 ```bash
-kubectl apply -f k8s-deployment-manifests/vulnmgmt/namespaces.yaml
-kubectl apply -R -f k8s-deployment-manifests/vulnmgmt/
+kubectl apply -f vulnmgmt/namespaces.yaml
+kubectl apply -R -f vulnmgmt/
 ```
 
 ## Notes
