@@ -13,10 +13,10 @@ package-web: webpack
 	cp -a webapp/dist $(target_dir)
 
 compile-server:
-	GOOS=linux go build -v -o $(target_dir)/$(svc_name) cmd/server.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o $(target_dir)/$(svc_name) cmd/server.go
 
 compile-vote-bot:
-	GOOS=linux go build -v -o $(target_dir)/emojivoto-vote-bot cmd/vote-bot/main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o $(target_dir)/emojivoto-vote-bot cmd/vote-bot/main.go
 
 compile: compile-server compile-vote-bot
 

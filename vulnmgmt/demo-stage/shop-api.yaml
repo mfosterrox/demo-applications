@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-api
+  namespace: demo-stage
+  labels:
+    app: shop
+    component: api
+    app.version: "1.0.0"
+    team: team-a
+    demo: vulnmgmt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shop
+      component: api
+  template:
+    metadata:
+      labels:
+        app: shop
+        component: api
+        app.version: "1.0.0"
+        team: team-a
+        demo: vulnmgmt
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: shop-api
+          image: quay.io/mfoster/shop-api:1.0.0
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

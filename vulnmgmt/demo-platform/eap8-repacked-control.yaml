@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eap8-repacked
+  namespace: demo-platform
+  labels:
+    app: eap8-repacked
+    team: platform
+    demo: vulnmgmt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eap8-repacked
+  template:
+    metadata:
+      labels:
+        app: eap8-repacked
+        team: platform
+        demo: vulnmgmt
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: eap8-repacked
+          image: quay.io/mfoster/base-eap8-repacked:1.0
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

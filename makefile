@@ -1,17 +1,10 @@
 # Define variables
 TEAM_NAME := mfoster
 VERSION := 0.1.0
-GENAI_STACK_COMPONENTS := genai-stack-bot genai-stack-loader genai-stack-pdf-bot genai-stack-api genai-stack-front-end genai-stack-pull-model
 # Emojivoto is built separately (one source tree, four images) — see build-emojivoto / EMOJIVOTO_IMAGES
 EMOJIVOTO_IMAGES := emojivoto-svc-base emojivoto-web emojivoto-emoji-svc emojivoto-voting-svc
-APPLICATIONS:= apache-struts dvwa dvwa-hummingbird hi-python-demo log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat $(GENAI_STACK_COMPONENTS)
+APPLICATIONS:= apache-struts dvwa dvwa-hummingbird hi-python-demo log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat
 MANIFEST_DIR ?= deployment-manifests
-GENAI_STACK_DIR := image-builds/genai-stack
-
-# docker/genai-stack does not publish genai-stack-front-end or genai-stack-pull-model on a public registry (compose always builds them from Git).
-# To skip local builds, set both to full image refs you can pull (e.g. CI-built linux/amd64 images on Quay or ghcr.io), then: make pull-retag-genai-stack-images
-GENAI_STACK_FRONT_END_SOURCE ?=
-GENAI_STACK_PULL_MODEL_SOURCE ?=
 
 update:
 	@echo "Updating image tags in Kubernetes manifests in $(MANIFEST_DIR)"
@@ -44,34 +37,10 @@ build-images:
 		IMAGE_NAME="quay.io/$(TEAM_NAME)/$${component}:$(VERSION)"; \
 		BUILD_CONTEXT="image-builds/$${component}"; \
 		DOCKERFILE="$$BUILD_CONTEXT/Dockerfile"; \
-		case "$$component" in \
-			genai-stack-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/bot.Dockerfile" ;; \
-			genai-stack-loader) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/loader.Dockerfile" ;; \
-			genai-stack-pdf-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pdf_bot.Dockerfile" ;; \
-			genai-stack-api) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/api.Dockerfile" ;; \
-			genai-stack-front-end) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/front-end.Dockerfile" ;; \
-			genai-stack-pull-model) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pull_model.Dockerfile" ;; \
-		esac; \
-		SHOULD_BUILD=false; \
-		if ! podman image exists $$IMAGE_NAME >/dev/null 2>&1; then \
-			SHOULD_BUILD=true; \
-			echo "Building $$component ($$TOTAL/$$TOTAL_COUNT)... (image does not exist)"; \
-		elif [ -f "$$DOCKERFILE" ]; then \
-			IMAGE_CREATED=$$(podman image inspect $$IMAGE_NAME --format '{{.Created}}' 2>/dev/null || echo ""); \
-			if [ -n "$$IMAGE_CREATED" ]; then \
-				IMAGE_TIME=$$(python3 -c "from datetime import datetime; print(int(datetime.fromisoformat('$$IMAGE_CREATED'.replace('Z', '+00:00')).timestamp()))" 2>/dev/null || echo "0"); \
-				DOCKERFILE_TIME=$$(stat -c %Y "$$DOCKERFILE" 2>/dev/null || stat -f %m "$$DOCKERFILE" 2>/dev/null || echo "0"); \
-				if [ "$$DOCKERFILE_TIME" -gt "$$IMAGE_TIME" ] 2>/dev/null && [ "$$IMAGE_TIME" != "0" ]; then \
-					SHOULD_BUILD=true; \
-					echo "Building $$component ($$TOTAL/$$TOTAL_COUNT)... (Dockerfile is newer than image)"; \
-				fi; \
-			fi; \
-		fi; \
-		if [ "$$SHOULD_BUILD" = "false" ]; then \
+		echo "Considering $$component ($$TOTAL/$$TOTAL_COUNT)..."; \
+		if FORCE_BUILD=$(FORCE_BUILD) bash scripts/quay-reuse.sh skip-build "$$IMAGE_NAME" "$$DOCKERFILE"; then \
 			SKIPPED=$$((SKIPPED + 1)); \
 			SKIPPED_BUILDS="$$SKIPPED_BUILDS $$component"; \
-			echo "⊘ Skipping $$component ($$TOTAL/$$TOTAL_COUNT) - image is up to date"; \
-			echo "  Image: $$IMAGE_NAME"; \
 		else \
 			PLATFORM="linux/amd64"; \
 			if [ ! -f "$$DOCKERFILE" ]; then \
@@ -98,7 +67,7 @@ build-images:
 	echo "========================================================="; \
 	echo "Total components processed: $$TOTAL"; \
 	echo "Successful builds: $$SUCCESS"; \
-	echo "Skipped (already exist): $$SKIPPED"; \
+	echo "Skipped (local or Quay): $$SKIPPED"; \
 	echo "Failed builds: $$FAILED"; \
 	echo ""; \
 	if [ -n "$$SUCCESSFUL_BUILDS" ]; then \
@@ -109,7 +78,7 @@ build-images:
 		echo ""; \
 	fi; \
 	if [ -n "$$SKIPPED_BUILDS" ]; then \
-		echo "⊘ Skipped (already exist):"; \
+		echo "⊘ Skipped (local or Quay):"; \
 		for component in $$SKIPPED_BUILDS; do \
 			echo "  - $$component"; \
 		done; \
@@ -127,11 +96,26 @@ build-images:
 	echo "========================================================="; \
 	if ( cd image-builds/emojivoto && \
 		TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) REGISTRY_PREFIX=quay.io/$(TEAM_NAME) IMAGE_TAG=$(VERSION) \
+		PLATFORM=linux/amd64 \
+		FORCE_BUILD=$(FORCE_BUILD) \
 		./build-images.sh ); then \
 		echo "✓ Emojivoto build succeeded"; \
 	else \
 		FAILED=$$((FAILED + 1)); \
 		echo "✗ Emojivoto build failed"; \
+	fi; \
+	echo ""; \
+	echo "========================================================="; \
+	echo "Building vulnmgmt shop images (shop-api, shop-web, bases)..."; \
+	echo "========================================================="; \
+	if [ "$(SKIP_VULNMGMT_BUILD)" = "1" ]; then \
+		echo "⊘ Skipping vulnmgmt (SKIP_VULNMGMT_BUILD=1)"; \
+	elif TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 FORCE_BUILD=$(FORCE_BUILD) \
+		bash scripts/build-vulnmgmt.sh build; then \
+		echo "✓ Vulnmgmt shop build succeeded"; \
+	else \
+		FAILED=$$((FAILED + 1)); \
+		echo "✗ Vulnmgmt shop build failed"; \
 	fi; \
 	echo ""; \
 	echo "========================================================="; \
@@ -150,45 +134,16 @@ build:
 	@IMAGE_NAME="quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION)"; \
 	BUILD_CONTEXT="image-builds/$(COMPONENT)"; \
 	DOCKERFILE="$$BUILD_CONTEXT/Dockerfile"; \
-	case "$(COMPONENT)" in \
-		genai-stack-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/bot.Dockerfile" ;; \
-		genai-stack-loader) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/loader.Dockerfile" ;; \
-		genai-stack-pdf-bot) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pdf_bot.Dockerfile" ;; \
-		genai-stack-api) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/api.Dockerfile" ;; \
-		genai-stack-front-end) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/front-end.Dockerfile" ;; \
-		genai-stack-pull-model) BUILD_CONTEXT="image-builds/genai-stack"; DOCKERFILE="$$BUILD_CONTEXT/pull_model.Dockerfile" ;; \
-	esac; \
 	if [ ! -f "$$DOCKERFILE" ]; then \
 		echo "Error: Dockerfile not found for component $(COMPONENT)"; \
 		echo "  Expected: $$DOCKERFILE"; \
 		exit 1; \
 	fi; \
-	SHOULD_BUILD=false; \
-	if ! podman image exists $$IMAGE_NAME >/dev/null 2>&1; then \
-		SHOULD_BUILD=true; \
+	if FORCE_BUILD=$(FORCE_BUILD) bash scripts/quay-reuse.sh skip-build "$$IMAGE_NAME" "$$DOCKERFILE"; then \
 		echo "========================================================="; \
-		echo "Building component: $(COMPONENT)"; \
+		echo "Image already available: $(COMPONENT)"; \
 		echo "========================================================="; \
-		echo "Reason: Image does not exist"; \
-	elif [ -f "$$DOCKERFILE" ]; then \
-		IMAGE_CREATED=$$(podman image inspect $$IMAGE_NAME --format '{{.Created}}' 2>/dev/null || echo ""); \
-		if [ -n "$$IMAGE_CREATED" ]; then \
-			IMAGE_TIME=$$(python3 -c "from datetime import datetime; print(int(datetime.fromisoformat('$$IMAGE_CREATED'.replace('Z', '+00:00')).timestamp()))" 2>/dev/null || echo "0"); \
-			DOCKERFILE_TIME=$$(stat -c %Y "$$DOCKERFILE" 2>/dev/null || stat -f %m "$$DOCKERFILE" 2>/dev/null || echo "0"); \
-			if [ "$$DOCKERFILE_TIME" -gt "$$IMAGE_TIME" ] 2>/dev/null && [ "$$IMAGE_TIME" != "0" ]; then \
-				SHOULD_BUILD=true; \
-				echo "========================================================="; \
-				echo "Building component: $(COMPONENT)"; \
-				echo "========================================================="; \
-				echo "Reason: Dockerfile is newer than image"; \
-			fi; \
-		fi; \
-	fi; \
-	if [ "$$SHOULD_BUILD" = "false" ]; then \
-		echo "========================================================="; \
-		echo "Image already exists locally: $(COMPONENT)"; \
-		echo "========================================================="; \
-		echo "⊘ Skipping build - image is up to date"; \
+		echo "⊘ Skipping build - local or Quay image is up to date"; \
 		echo "Image: $$IMAGE_NAME"; \
 		echo "========================================================="; \
 	else \
@@ -457,6 +412,11 @@ tag-and-push:
 		exit 1; \
 	fi
 
+# Pulls existing quay.io/$(TEAM_NAME)/<app>:$(VERSION) tags first so Podman can
+# reuse layers. Skips rebuild/push when the tag is already present and the
+# Dockerfile is not newer. Override with FORCE_BUILD=1 and/or FORCE_PUSH=1.
+# Also builds Emojivoto (linux/amd64) and vulnmgmt shop images (shop-api, shop-web).
+# Skip shop images with SKIP_VULNMGMT_BUILD=1.
 build-tag-and-push:
 	$(MAKE) build-images
 	$(MAKE) push-images
@@ -537,49 +497,17 @@ pull:
 		echo "All pulls completed successfully!"; \
 	fi
 
-# Pull two GenAI images from a registry you control and tag them as quay.io/$(TEAM_NAME)/…:$(VERSION).
-# Required: GENAI_STACK_FRONT_END_SOURCE and GENAI_STACK_PULL_MODEL_SOURCE (full refs, e.g. quay.io/myorg/genai-front:0.1.0).
-pull-retag-genai-stack-images:
-	@if [ -z "$(GENAI_STACK_FRONT_END_SOURCE)" ] || [ -z "$(GENAI_STACK_PULL_MODEL_SOURCE)" ]; then \
-		echo "Error: set both GENAI_STACK_FRONT_END_SOURCE and GENAI_STACK_PULL_MODEL_SOURCE."; \
-		echo "There is no public upstream image for these services; use mirrors you pushed from a Linux/CI build."; \
-		exit 1; \
-	fi
-	@echo "Pulling $(GENAI_STACK_FRONT_END_SOURCE) (linux/amd64)..."
-	@podman pull --platform linux/amd64 $(GENAI_STACK_FRONT_END_SOURCE)
-	@podman tag $(GENAI_STACK_FRONT_END_SOURCE) quay.io/$(TEAM_NAME)/genai-stack-front-end:$(VERSION)
-	@echo "Tagged quay.io/$(TEAM_NAME)/genai-stack-front-end:$(VERSION)"
-	@echo "Pulling $(GENAI_STACK_PULL_MODEL_SOURCE) (linux/amd64)..."
-	@podman pull --platform linux/amd64 $(GENAI_STACK_PULL_MODEL_SOURCE)
-	@podman tag $(GENAI_STACK_PULL_MODEL_SOURCE) quay.io/$(TEAM_NAME)/genai-stack-pull-model:$(VERSION)
-	@echo "Tagged quay.io/$(TEAM_NAME)/genai-stack-pull-model:$(VERSION)"
-	@echo "Done. Run make push-images (or push only these two) when ready."
-
-# Local GenAI stack (https://github.com/docker/genai-stack) with Podman Compose + compose.podman.yaml (host-gateway for Ollama on host).
-# Prereq: podman compose; copy env.example to .env in GENAI_STACK_DIR; start Ollama on host (ollama serve) unless using --profile linux.
-genai-podman-up:
-	@echo "Starting GenAI stack from $(GENAI_STACK_DIR) (Podman)..."
-	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml up --build -d
-
-genai-podman-down:
-	@echo "Stopping GenAI stack..."
-	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml down
-
-genai-podman-logs:
-	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml logs -f
-
-genai-podman-ps:
-	cd $(GENAI_STACK_DIR) && podman compose -f docker-compose.yml -f compose.podman.yaml ps
-
 push-images:
 	@echo "========================================================="
 	@echo "Starting push process for all applications..."
 	@echo "========================================================="
 	@SUCCESSFUL_PUSHES=""; \
 	FAILED_PUSHES=""; \
+	SKIPPED_PUSHES=""; \
 	TOTAL=0; \
 	SUCCESS=0; \
 	FAILED=0; \
+	SKIPPED=0; \
 	for component in $(APPLICATIONS); do \
 		TOTAL=$$((TOTAL + 1)); \
 	done; \
@@ -589,7 +517,10 @@ push-images:
 		TOTAL=$$((TOTAL + 1)); \
 		echo ""; \
 		echo "Pushing $$component ($$TOTAL/$$TOTAL_COUNT)..."; \
-		if podman push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
+		if FORCE_PUSH=$(FORCE_PUSH) bash scripts/quay-reuse.sh skip-push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
+			SKIPPED=$$((SKIPPED + 1)); \
+			SKIPPED_PUSHES="$$SKIPPED_PUSHES $$component"; \
+		elif podman push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
 			SUCCESS=$$((SUCCESS + 1)); \
 			SUCCESSFUL_PUSHES="$$SUCCESSFUL_PUSHES $$component"; \
 			echo "✓ Successfully pushed $$component"; \
@@ -607,7 +538,10 @@ push-images:
 		TOTAL=$$((TOTAL + 1)); \
 		echo ""; \
 		echo "Pushing $$component..."; \
-		if podman push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
+		if FORCE_PUSH=$(FORCE_PUSH) bash scripts/quay-reuse.sh skip-push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
+			SKIPPED=$$((SKIPPED + 1)); \
+			SKIPPED_PUSHES="$$SKIPPED_PUSHES $$component"; \
+		elif podman push quay.io/$(TEAM_NAME)/$${component}:$(VERSION); then \
 			SUCCESS=$$((SUCCESS + 1)); \
 			SUCCESSFUL_PUSHES="$$SUCCESSFUL_PUSHES $$component"; \
 			echo "✓ Successfully pushed $$component"; \
@@ -619,15 +553,38 @@ push-images:
 	done; \
 	echo ""; \
 	echo "========================================================="; \
+	echo "Pushing vulnmgmt shop images..."; \
+	echo "========================================================="; \
+	if [ "$(SKIP_VULNMGMT_BUILD)" = "1" ]; then \
+		echo "⊘ Skipping vulnmgmt push (SKIP_VULNMGMT_BUILD=1)"; \
+	elif TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 FORCE_PUSH=$(FORCE_PUSH) \
+		bash scripts/build-vulnmgmt.sh push \
+		&& TEAM_NAME=$(TEAM_NAME) bash scripts/build-vulnmgmt.sh copy-prod-mirror; then \
+		echo "✓ Vulnmgmt shop images pushed (including prod-mirror copies)"; \
+	else \
+		FAILED=$$((FAILED + 1)); \
+		FAILED_PUSHES="$$FAILED_PUSHES vulnmgmt-shop"; \
+		echo "✗ Vulnmgmt shop push failed"; \
+	fi; \
+	echo ""; \
+	echo "========================================================="; \
 	echo "Push Summary"; \
 	echo "========================================================="; \
-	echo "Total pushes attempted: $$TOTAL"; \
+	echo "Total images considered: $$TOTAL"; \
 	echo "Successful pushes: $$SUCCESS"; \
+	echo "Skipped (already on Quay): $$SKIPPED"; \
 	echo "Failed pushes: $$FAILED"; \
 	echo ""; \
 	if [ -n "$$SUCCESSFUL_PUSHES" ]; then \
 		echo "✓ Successful pushes:"; \
 		for component in $$SUCCESSFUL_PUSHES; do \
+			echo "  - $$component"; \
+		done; \
+		echo ""; \
+	fi; \
+	if [ -n "$$SKIPPED_PUSHES" ]; then \
+		echo "⊘ Skipped (already on Quay):"; \
+		for component in $$SKIPPED_PUSHES; do \
 			echo "  - $$component"; \
 		done; \
 		echo ""; \
@@ -655,7 +612,13 @@ push:
 	@echo "========================================================="
 	@echo "Pushing component: $(COMPONENT)"
 	@echo "========================================================="
-	@if podman push quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION); then \
+	@if FORCE_PUSH=$(FORCE_PUSH) bash scripts/quay-reuse.sh skip-push quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION); then \
+		echo ""; \
+		echo "========================================================="; \
+		echo "⊘ Skipping push - already on registry"; \
+		echo "Image: quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION)"; \
+		echo "========================================================="; \
+	elif podman push quay.io/$(TEAM_NAME)/$(COMPONENT):$(VERSION); then \
 		echo ""; \
 		echo "========================================================="; \
 		echo "✓ Successfully pushed $(COMPONENT)"; \
@@ -954,11 +917,13 @@ podman-ps:
 build-emojivoto:
 	@cd image-builds/emojivoto && \
 		TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) REGISTRY_PREFIX=quay.io/$(TEAM_NAME) IMAGE_TAG=$(VERSION) \
+		PLATFORM=linux/amd64 \
 		./build-images.sh
 
 push-emojivoto:
 	@cd image-builds/emojivoto && \
 		TEAM_NAME=$(TEAM_NAME) VERSION=$(VERSION) REGISTRY_PREFIX=quay.io/$(TEAM_NAME) IMAGE_TAG=$(VERSION) \
+		PLATFORM=linux/amd64 \
 		PUSH=1 ./build-images.sh
 
 build-push-emojivoto: build-emojivoto push-emojivoto
@@ -977,3 +942,21 @@ update-emojivoto-manifests:
 		k8s-deployment-manifests/emojivoto/everything.yml
 	@rm -f k8s-deployment-manifests/emojivoto/everything.yml.bak
 	@echo "Done. Review k8s-deployment-manifests/emojivoto/everything.yml"
+
+# RHACS vulnerability-management shop demo (image-builds/base-* and shop-*).
+# Requires podman login registry.redhat.io (UBI / AMQ Streams) and quay.io for push.
+# JARs are downloaded at build time (gitignored); see image-builds/shop-api/download-jars.sh
+.PHONY: build-vulnmgmt push-vulnmgmt copy-vulnmgmt-prod-mirror
+
+build-vulnmgmt:
+	@chmod +x scripts/build-vulnmgmt.sh image-builds/shop-api/download-jars.sh
+	@TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 FORCE_BUILD=$(FORCE_BUILD) scripts/build-vulnmgmt.sh build
+
+push-vulnmgmt:
+	@chmod +x scripts/build-vulnmgmt.sh
+	@TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 FORCE_PUSH=$(FORCE_PUSH) scripts/build-vulnmgmt.sh push
+
+# Copy shop-api:1.0.0 / shop-web:1.0.0 to prod-mirror-* with the same digest (skopeo, else podman tag+push).
+copy-vulnmgmt-prod-mirror:
+	@chmod +x scripts/build-vulnmgmt.sh
+	@TEAM_NAME=$(TEAM_NAME) scripts/build-vulnmgmt.sh copy-prod-mirror

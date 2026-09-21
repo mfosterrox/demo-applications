@@ -5,7 +5,7 @@ include ./common.mk
 all: build integration-tests
 
 build-base-docker-image:
-	$(CONTAINER_CMD) build --platform linux/amd64 . -f Dockerfile-base \
+	$(CONTAINER_CMD) build --platform $(PLATFORM) . -f Dockerfile-base \
 		-t "$(REGISTRY_PREFIX)/emojivoto-svc-base:$(IMAGE_TAG)"
 
 web:
