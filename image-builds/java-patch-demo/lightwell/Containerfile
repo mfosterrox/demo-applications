@@ -1,0 +1,24 @@
+# Lightwell cohort. Change this file to change the base image.
+# Library versions are pinned in lightwell/pom.xml.
+FROM registry.access.redhat.com/ubi9/openjdk-21:latest AS build
+USER 0
+WORKDIR /src
+COPY lightwell/pom.xml pom.xml
+COPY src ./src
+# Credentials are injected by scripts/build-java-patch-lightwell.sh and mounted
+# only for this Maven run. They are not copied into the image.
+RUN --mount=type=secret,id=lightwell_maven_settings,required=true \
+    mvn -B -s /run/secrets/lightwell_maven_settings -DskipTests package
+
+FROM registry.access.redhat.com/hi/openjdk:latest
+LABEL org.opencontainers.image.title="Java patch demo lightwell" \
+      demo.patch="lightwell" \
+      demo.base-image="registry.access.redhat.com/hi/openjdk:latest"
+ENV DEMO_PATCH=lightwell \
+    DEMO_BASE_IMAGE=registry.access.redhat.com/hi/openjdk:latest \
+    HOME=/tmp \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
+COPY --from=build /src/target/java-patch-demo.jar /app/app.jar
+WORKDIR /tmp
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

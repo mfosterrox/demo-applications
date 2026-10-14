@@ -165,6 +165,9 @@ coverage/
 *.tar
 *.zip
 
+# Lightwell Maven credentials written by scripts/build-java-patch-lightwell.sh
+**/podman-build-secret-*
+
 # Misc
 *.bak
 *.backup

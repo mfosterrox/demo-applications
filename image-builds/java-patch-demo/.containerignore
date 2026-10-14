@@ -1,0 +1,6 @@
+target
+**/target
+out
+.cache
+podman-build-secret-*
+**/podman-build-secret-*

@@ -960,3 +960,30 @@ push-vulnmgmt:
 copy-vulnmgmt-prod-mirror:
 	@chmod +x scripts/build-vulnmgmt.sh
 	@TEAM_NAME=$(TEAM_NAME) scripts/build-vulnmgmt.sh copy-prod-mirror
+
+# Java patch-age demo. Each cohort has its own Containerfile, pom, and deployment.
+# The scripts do not pass base images or library versions.
+# java-patch-6mo-1yr and java-patch-lightwell build the image and push it to Quay.
+# The Lightwell target prompts for the registry username and access token.
+#   make java-patch-6mo-1yr
+#   make java-patch-6mo-1yr JAVA_PATCH_COHORT=6mo
+#   make java-patch-lightwell
+.PHONY: java-patch-6mo-1yr java-patch-lightwell build-java-patch-6mo-1yr push-java-patch-6mo-1yr build-java-patch-lightwell push-java-patch-lightwell
+
+JAVA_PATCH_COHORT ?= all
+
+java-patch-6mo-1yr push-java-patch-6mo-1yr:
+	@chmod +x scripts/build-java-patch-6mo-1yr.sh
+	@TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 scripts/build-java-patch-6mo-1yr.sh push $(JAVA_PATCH_COHORT)
+
+build-java-patch-6mo-1yr:
+	@chmod +x scripts/build-java-patch-6mo-1yr.sh
+	@TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 scripts/build-java-patch-6mo-1yr.sh build $(JAVA_PATCH_COHORT)
+
+java-patch-lightwell push-java-patch-lightwell:
+	@chmod +x scripts/build-java-patch-lightwell.sh
+	@TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 scripts/build-java-patch-lightwell.sh push
+
+build-java-patch-lightwell:
+	@chmod +x scripts/build-java-patch-lightwell.sh
+	@TEAM_NAME=$(TEAM_NAME) PLATFORM=linux/amd64 scripts/build-java-patch-lightwell.sh build

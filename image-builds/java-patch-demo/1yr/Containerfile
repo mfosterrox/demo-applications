@@ -1,0 +1,22 @@
+# One-year cohort. Change this file to change the base image.
+# Library versions are pinned in 1yr/pom.xml.
+# x86_64 UBI9 OpenJDK 21 from RHBA-2025:22674 (2025-12-03).
+FROM registry.access.redhat.com/ubi9/openjdk-21:latest AS build
+USER 0
+WORKDIR /src
+COPY 1yr/pom.xml pom.xml
+COPY src ./src
+RUN mvn -B -DskipTests package
+
+FROM registry.access.redhat.com/ubi9/openjdk-21@sha256:4a11d16b939b48ee849587a72a1f0a717e2d4153868d9e2a83469db4ef99f8bf
+LABEL org.opencontainers.image.title="Java patch demo 1yr" \
+      demo.patch="1yr" \
+      demo.base-image="registry.access.redhat.com/ubi9/openjdk-21@sha256:4a11d16b939b48ee849587a72a1f0a717e2d4153868d9e2a83469db4ef99f8bf"
+ENV DEMO_PATCH=1yr \
+    DEMO_BASE_IMAGE=registry.access.redhat.com/ubi9/openjdk-21@sha256:4a11d16b939b48ee849587a72a1f0a717e2d4153868d9e2a83469db4ef99f8bf \
+    HOME=/tmp \
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
+COPY --from=build /src/target/java-patch-demo.jar /app/app.jar
+WORKDIR /tmp
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

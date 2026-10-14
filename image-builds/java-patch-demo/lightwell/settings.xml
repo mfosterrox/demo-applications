@@ -1,0 +1,92 @@
+<settings>
+  <servers>
+    <server>
+      <id>lightwell-remediated</id>
+      <username>__LIGHTWELL_USERNAME__</username>
+      <password>__LIGHTWELL_PASSWORD__</password>
+    </server>
+    <server>
+      <id>lightwell-validated</id>
+      <username>__LIGHTWELL_USERNAME__</username>
+      <password>__LIGHTWELL_PASSWORD__</password>
+    </server>
+  </servers>
+  <profiles>
+    <profile>
+      <id>lightwell</id>
+      <repositories>
+        <repository>
+          <id>lightwell-remediated</id>
+          <name>Red Hat Lightwell Network - Remediated</name>
+          <url>https://packages.redhat.com/lightwell/java/remediated/</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+        <repository>
+          <id>lightwell-validated</id>
+          <name>Red Hat Lightwell Network - Validated</name>
+          <url>https://packages.redhat.com/lightwell/java/validated/</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+        <repository>
+          <id>central</id>
+          <name>Maven Central</name>
+          <url>https://repo.maven.apache.org/maven2</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+      </repositories>
+      <pluginRepositories>
+        <pluginRepository>
+          <id>lightwell-remediated</id>
+          <name>Red Hat Lightwell Network - Remediated</name>
+          <url>https://packages.redhat.com/lightwell/java/remediated/</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+          <id>lightwell-validated</id>
+          <name>Red Hat Lightwell Network - Validated</name>
+          <url>https://packages.redhat.com/lightwell/java/validated/</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+          <id>central</id>
+          <name>Maven Central</name>
+          <url>https://repo.maven.apache.org/maven2</url>
+          <releases>
+            <enabled>true</enabled>
+          </releases>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+  <activeProfiles>
+    <activeProfile>lightwell</activeProfile>
+  </activeProfiles>
+</settings>

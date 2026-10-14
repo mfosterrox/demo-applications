@@ -75,6 +75,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 - **dvwa** - Damn Vulnerable Web Application
 - **dvwa-hummingbird** - DVWA with Hummingbird integration
 - **hummingbird-demo** - Project Hummingbird Python base + layered app (RHACS base vs application CVE demo)
+- **java-patch-demo** - Three Spring Boot builds of one app: Lightwell on hardened OpenJDK, plus public OpenJDK images about six months and one year old
 - **emojivoto** - Buoyant emoji voting demo (mirror to Quay: `make mirror-emojivoto-to-quay`; vote-bot generates traffic)
 - **juice-shop** - OWASP Juice Shop
 - **log4shell** - Log4Shell vulnerability demonstration
@@ -96,6 +97,7 @@ k8s-deployment-manifests/
 ├── dvwa/                 # DVWA manifests
 ├── dvwa-hummingbird/     # DVWA Hummingbird manifests
 ├── hummingbird-demo/     # Hummingbird Python base + layered deployment (Quay image)
+├── java-patch-demo/      # Lightwell / 6mo / 1yr Spring Boot (one namespace, three routes)
 ├── emojivoto/            # Emojivoto (web, emoji, voting, vote-bot)
 ├── juice-shop/           # Juice Shop manifests
 ├── log4shell/            # Log4Shell manifests
@@ -116,6 +118,8 @@ scripts/
 ├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
 ├── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
 ├── build-vulnmgmt.sh                          # Build/push vulnmgmt images to Quay
+├── build-java-patch-6mo-1yr.sh                # Build/push the 6mo and 1yr Java images
+├── build-java-patch-lightwell.sh              # Build/push the Lightwell image; prompts for credentials
 └── quay-reuse.sh                              # Skip rebuild/push when Quay already has the tag
 image-builds/
 ├── emojivoto/              # Vendored BuoyantIO/emojivoto source + Dockerfiles
@@ -123,7 +127,8 @@ image-builds/
 ├── base-eap8/              # Vulnmgmt shop-api base (AMQ Streams Kafka, content manifests)
 ├── base-eap8-repacked/     # Negative control: Kafka JARs copied onto UBI (no content manifests)
 ├── shop-api/               # Shop API layers (download JARs; not committed)
-└── shop-web/               # Shop Web layer on UBI OpenJDK
+├── shop-web/               # Shop Web layer on UBI OpenJDK
+└── java-patch-demo/        # Shared Java source; lightwell, 6mo, and 1yr Containerfiles
 ```
 
 ## RHACS vulnerability management (vulnmgmt)
@@ -161,6 +166,45 @@ kubectl apply -f vulnmgmt/namespaces.yaml
 kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/demo-dev namespace/demo-stage namespace/demo-prod namespace/demo-platform --timeout=90s
 kubectl apply -R -f vulnmgmt/
 ```
+
+## Java patch-age demo
+
+One Spring Boot application, three independent images. Each cohort has its own Containerfile, pom, and OpenShift manifest. The build scripts do not pass base images or library versions. Edit the cohort file, then rebuild that image.
+
+The lightwell cohort resolves Java artifacts from the Red Hat Lightwell Network remediated repository, then the validated repository, then Maven Central. The repository profile is in `image-builds/java-patch-demo/lightwell/settings.xml`. `scripts/build-java-patch-lightwell.sh` uses an existing `image-builds/podman-build-secret-*` file when one is present. Otherwise it prompts for the registry service account username (`orgId|name`) and access token and saves `image-builds/podman-build-secret-lightwell`. That file is gitignored. Delete it to enter a new token. The token is mounted only for the Maven build and is not stored in the image.
+
+| Cohort | Containerfile and libraries | Deployment |
+| --- | --- | --- |
+| lightwell | `image-builds/java-patch-demo/lightwell/` — `hi/openjdk:latest`, Spring Boot 4.1.1, Jackson 3.1.7 | `k8s-deployment-manifests/java-patch-demo/java-patch-lightwell.yaml` |
+| 6mo | `image-builds/java-patch-demo/6mo/` — UBI9 OpenJDK 21 from 2026-05-04, Spring Boot 4.0.6 | `k8s-deployment-manifests/java-patch-demo/java-patch-6mo.yaml` |
+| 1yr | `image-builds/java-patch-demo/1yr/` — UBI9 OpenJDK 21 from 2025-12-03, Spring Boot 3.5.8 | `k8s-deployment-manifests/java-patch-demo/java-patch-1yr.yaml` |
+
+Images (`quay.io/mfoster`, override the org with `TEAM_NAME`):
+
+- `quay.io/mfoster/java-patch-demo:lightwell`
+- `quay.io/mfoster/java-patch-demo:6mo`
+- `quay.io/mfoster/java-patch-demo:1yr`
+
+Build and push to `quay.io/mfoster` (requires `podman login quay.io`). The Lightwell command prompts for the username and access token.
+
+```bash
+make java-patch-6mo-1yr
+make java-patch-lightwell
+
+# Rebuild and push one older cohort after editing its Containerfile or pom.
+make java-patch-6mo-1yr JAVA_PATCH_COHORT=6mo
+```
+
+`make build-java-patch-6mo-1yr` and `make build-java-patch-lightwell` build locally and skip the push. Running either script with no arguments also builds and pushes.
+
+Deploy all three into namespace `java-patch-demo`. Each file includes a Deployment, Service, and Route.
+
+```bash
+kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-java-patch-demo.yaml
+kubectl apply -f k8s-deployment-manifests/java-patch-demo/
+```
+
+`GET /` on each route returns the patch tag, the Spring Boot version from that image's pom, and the Java version. Probes use `GET /health`.
 
 ## Notes
 

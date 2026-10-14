@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-patch-lightwell
+  namespace: java-patch-demo
+  labels:
+    app: java-patch-lightwell
+    demo: java-patch-demo
+    patch: lightwell
+    repo: demo-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-patch-lightwell
+  template:
+    metadata:
+      labels:
+        app: java-patch-lightwell
+        demo: java-patch-demo
+        patch: lightwell
+        repo: demo-apps
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: quay.io/mfoster/java-patch-demo:lightwell
+          ports:
+            - containerPort: 8080
+              name: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 50m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-patch-lightwell
+  namespace: java-patch-demo
+  labels:
+    app: java-patch-lightwell
+    demo: java-patch-demo
+    patch: lightwell
+    repo: demo-apps
+spec:
+  selector:
+    app: java-patch-lightwell
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: java-patch-lightwell
+  namespace: java-patch-demo
+  labels:
+    app: java-patch-lightwell
+    demo: java-patch-demo
+    patch: lightwell
+    repo: demo-apps
+spec:
+  to:
+    kind: Service
+    name: java-patch-lightwell
+  port:
+    targetPort: http
