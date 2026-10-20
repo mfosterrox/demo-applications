@@ -1,3 +1,6 @@
+# The primary-user-defined-network label is only accepted when the namespace
+# is created. Log4Shell stays in this project, so it uses a project network
+# rather than the medical application network.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -5,4 +8,17 @@ metadata:
   labels:
     demo: roadshow
     repo: demo-apps
+    k8s.ovn.org/primary-user-defined-network: ""
+---
+apiVersion: k8s.ovn.org/v1
+kind: UserDefinedNetwork
+metadata:
+  name: log4shell
+  namespace: log4shell
+spec:
+  topology: Layer2
+  layer2:
+    role: Primary
+    subnets:
+      - "192.168.124.0/24"
 

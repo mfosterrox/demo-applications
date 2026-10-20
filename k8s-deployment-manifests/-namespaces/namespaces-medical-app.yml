@@ -1,4 +1,7 @@
 # Namespace for operations
+# The primary-user-defined-network label is only accepted when the namespace
+# is created. These projects share one primary network so operations, backend,
+# and payments can still reach each other.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -7,6 +10,7 @@ metadata:
     name: operations
     demo: roadshow
     repo: demo-apps
+    k8s.ovn.org/primary-user-defined-network: ""
 ---
 # Namespace for backend
 apiVersion: v1
@@ -17,6 +21,7 @@ metadata:
     name: backend
     demo: roadshow
     repo: demo-apps
+    k8s.ovn.org/primary-user-defined-network: ""
 ---
 # Namespace for frontend
 apiVersion: v1
@@ -27,8 +32,9 @@ metadata:
     name: frontend
     demo: roadshow
     repo: demo-apps
+    k8s.ovn.org/primary-user-defined-network: ""
 ---
-    # Namespace for medical
+# Namespace for medical
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -37,6 +43,7 @@ metadata:
     name: medical
     demo: roadshow
     repo: demo-apps
+    k8s.ovn.org/primary-user-defined-network: ""
 ---
 # Namespace for payments
 apiVersion: v1
@@ -47,6 +54,31 @@ metadata:
     name: payments
     demo: roadshow
     repo: demo-apps
+    k8s.ovn.org/primary-user-defined-network: ""
+---
+# One primary network for the medical application. A per-project network would
+# isolate operations from medical and payments.
+apiVersion: k8s.ovn.org/v1
+kind: ClusterUserDefinedNetwork
+metadata:
+  name: medical-application
+spec:
+  namespaceSelector:
+    matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: In
+        values:
+          - backend
+          - frontend
+          - medical
+          - operations
+          - payments
+  network:
+    topology: Layer2
+    layer2:
+      role: Primary
+      subnets:
+        - "192.168.123.0/24"
 ---
 # Namespace for yelb app
 apiVersion: v1
