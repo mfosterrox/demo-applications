@@ -1,78 +1,68 @@
-# Namespace for operations
-# The primary-user-defined-network label is only accepted when the namespace
-# is created. These projects share one primary network so operations, backend,
-# and payments can still reach each other.
+# Medical application projects share emea-customer-1.
+# The primary-user-defined-network label is only accepted when the namespace is created.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: operations
   labels:
     name: operations
+    app: emea-customer-1
     demo: roadshow
     repo: demo-apps
     k8s.ovn.org/primary-user-defined-network: ""
 ---
-# Namespace for backend
 apiVersion: v1
 kind: Namespace
 metadata:
   name: backend
   labels:
     name: backend
+    app: emea-customer-1
     demo: roadshow
     repo: demo-apps
     k8s.ovn.org/primary-user-defined-network: ""
 ---
-# Namespace for frontend
 apiVersion: v1
 kind: Namespace
 metadata:
   name: frontend
   labels:
     name: frontend
+    app: emea-customer-1
     demo: roadshow
     repo: demo-apps
     k8s.ovn.org/primary-user-defined-network: ""
 ---
-# Namespace for medical
 apiVersion: v1
 kind: Namespace
 metadata:
   name: medical
   labels:
     name: medical
+    app: emea-customer-1
     demo: roadshow
     repo: demo-apps
     k8s.ovn.org/primary-user-defined-network: ""
 ---
-# Namespace for payments
 apiVersion: v1
 kind: Namespace
 metadata:
   name: payments
   labels:
     name: payments
+    app: emea-customer-1
     demo: roadshow
     repo: demo-apps
     k8s.ovn.org/primary-user-defined-network: ""
 ---
-# One primary network for the medical application. A per-project network would
-# isolate operations from medical and payments.
 apiVersion: k8s.ovn.org/v1
 kind: ClusterUserDefinedNetwork
 metadata:
-  name: medical-application
+  name: emea-customer-1
 spec:
   namespaceSelector:
-    matchExpressions:
-      - key: kubernetes.io/metadata.name
-        operator: In
-        values:
-          - backend
-          - frontend
-          - medical
-          - operations
-          - payments
+    matchLabels:
+      app: emea-customer-1
   network:
     topology: Layer2
     layer2:
