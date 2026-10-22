@@ -3,7 +3,7 @@ TEAM_NAME := mfoster
 VERSION := 0.1.0
 # Emojivoto is built separately (one source tree, four images) — see build-emojivoto / EMOJIVOTO_IMAGES
 EMOJIVOTO_IMAGES := emojivoto-svc-base emojivoto-web emojivoto-emoji-svc emojivoto-voting-svc
-APPLICATIONS:= apache-struts dvwa dvwa-hummingbird hi-python-demo log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor web-ctf-container webgoat
+APPLICATIONS:= apache-struts dvwa dvwa-hummingbird hi-python-demo log4shell nodejs-goof-vuln-main patient-portal-database patient-portal-frontend patient-portal-payment-processor php2shell web-ctf-container webgoat
 MANIFEST_DIR ?= deployment-manifests
 
 update:

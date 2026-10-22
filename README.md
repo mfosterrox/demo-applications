@@ -39,10 +39,10 @@ Check the status of all deployments:
 
 ```bash
 # List all namespaces
-kubectl get namespaces | grep -E "(acs-fam-demo|apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
+kubectl get namespaces | grep -E "(acs-fam-demo|apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|php2shell|unprotected-api|web-ctf|webgoat)"
 
 # Check pods across all demo namespaces
-kubectl get pods --all-namespaces | grep -E "(acs-fam-demo|apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|unprotected-api|web-ctf|webgoat)"
+kubectl get pods --all-namespaces | grep -E "(acs-fam-demo|apache-struts|dvwa|emojivoto|juice-shop|log4shell|nodejs-goof|patient-portal|php2shell|unprotected-api|web-ctf|webgoat)"
 
 # Check deployments in a specific namespace
 kubectl get deployments -n juice-shop
@@ -81,6 +81,7 @@ kubectl delete namespace juice-shop --ignore-not-found=true
 - **log4shell** - Log4Shell vulnerability demonstration
 - **medical-application** - Patient Portal medical application
 - **nodejs-goof-vuln-main** - Node.js Goof vulnerable application
+- **php2shell** - PHP 8.2.33 workload carrying CVE-2026-109618 and CVE-2026-109619
 - **skupper-demo** - Skupper demo application
 - **skupper-demo-hummingbird** - Skupper demo with Hummingbird
 - **vulnmgmt** - RHACS vulnerability-management shop demo (dev/stage/prod + platform negative control)
@@ -108,6 +109,7 @@ k8s-deployment-manifests/
 │   ├── operations/everything.yml
 │   └── payments/everything.yml
 ├── nodejs-goof-vuln-main/# Node.js Goof manifests
+├── php2shell/            # PHP2Shell (CVE-2026-109618, CVE-2026-109619)
 ├── skupper-demo/         # Skupper demo manifests
 ├── skupper-demo-hummingbird/ # Skupper Hummingbird manifests
 ├── web-ctf-container/    # Web CTF manifests
@@ -128,7 +130,8 @@ image-builds/
 ├── base-eap8-repacked/     # Negative control: Kafka JARs copied onto UBI (no content manifests)
 ├── shop-api/               # Shop API layers (download JARs; not committed)
 ├── shop-web/               # Shop Web layer on UBI OpenJDK
-└── java-patch-demo/        # Shared Java source; lightwell, 6mo, and 1yr Containerfiles
+├── java-patch-demo/        # Shared Java source; lightwell, 6mo, and 1yr Containerfiles
+└── php2shell/              # PHP 8.2.33 S2I app (CVE-2026-109618 and CVE-2026-109619)
 ```
 
 ## RHACS vulnerability management (vulnmgmt)
@@ -205,6 +208,26 @@ kubectl apply -f k8s-deployment-manifests/java-patch-demo/
 ```
 
 `GET /` on each route returns the patch tag, the Spring Boot version from that image's pom, and the Java version. Probes use `GET /health`.
+
+## PHP2Shell
+
+One OpenShift workload whose PHP RPMs are the pre-patch `php-8.2.33` build from `ubi9/php-82:1-1792440794` (2026-10-19). Red Hat catalog lists both CVE-2026-109618 and CVE-2026-109619 on that package. RHSA-2026:87072 fixes both in `php-8.2.35`. The Dockerfile pins the image digest so a rebuild cannot pick up the patched `:latest` tag.
+
+Image: `quay.io/mfoster/php2shell:0.1.0`
+
+```bash
+make build COMPONENT=php2shell
+make push COMPONENT=php2shell
+```
+
+Deploy:
+
+```bash
+kubectl apply -f k8s-deployment-manifests/-namespaces/namespace-php2shell.yaml
+kubectl apply -f k8s-deployment-manifests/php2shell/
+```
+
+`GET /` returns the PHP version and the two CVE IDs. Probes use `GET /`. Roadshow GitOps syncs the same Deployment from `demo-apps` `kubernetes-manifests/php2shell/`.
 
 ## Notes
 
