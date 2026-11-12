@@ -5,15 +5,15 @@
 # Deploys the workshop workloads, then configures the RHACS 5 pieces that
 # module uses:
 #   - file activity monitoring and a deployment file-activity policy
-#   - virtual machine scanning (VSOCK, Central/Sensor env, a RHEL 9 guest)
 #   - the ACS MCP server, and Lightspeed wiring when OLSConfig already exists
-#   - Lightspeed-assisted risk enrichment when the Lightspeed API is ready
+#   - Lightspeed-assisted risk enrichment (Central query access, a Central-only
+#     network policy, and ROX_LIGHTSPEED_ENDPOINT)
 #
 # Does not enable init-container policy evaluation.
 #
 # Re-run after the Lightspeed module if the first run reports that OLSConfig
-# or the Lightspeed API was missing. Workloads and RHACS settings that are
-# already in place are left alone.
+# or the Lightspeed operator was missing. Workloads and RHACS settings that
+# are already in place are left alone.
 #
 # Usage (from a bastion that is already logged in with oc):
 #   ./scripts/setup-acs-module.sh
@@ -23,10 +23,6 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-readonly ACS_VM_NAMESPACE="rhacs-virt"
-readonly ACS_VM_NAME="rhel9-vm"
-readonly ACS_VM_USER="cloud-user"
-readonly ACS_VM_PASSWORD="acs-lab-vm"
 readonly MCP_NAMESPACE="rhacs-mcp"
 readonly MCP_DEPLOYMENT="stackrox-mcp"
 readonly LIGHTSPEED_NAMESPACE="openshift-lightspeed"
@@ -34,15 +30,12 @@ readonly LIGHTSPEED_SECRET="acs-mcp-api-token"
 # Exported because the Python helpers read them from the environment.
 # A prefix assignment (NAME="${NAME}" cmd) fails when the variable is readonly.
 declare -rx TOKEN_NAME="ols-mcp-integration"
-declare -rx ROXAGENT_URL="https://mirror.openshift.com/pub/rhacs/assets/4.11.6/bin/linux/roxagent"
 
 ACS_NS=""
 CENTRAL_NAME=""
 SECURED_NAME=""
-ENABLE_VM=false
-VM_CREATED=false
 LIGHTSPEED_STATUS=""
-# Set when lightspeed-app-server is reachable. Empty leaves Central unchanged.
+# Documented RHACS 5.0 default. Empty leaves Central unchanged.
 RISK_ENRICHMENT_ENDPOINT=""
 
 info() { printf '%s\n' "$*"; }
@@ -124,19 +117,17 @@ detect_acs() {
   info "Secured cluster: ${ACS_NS}/${SECURED_NAME}"
 }
 
-# Read a live object, merge VM env and/or file-activity monitoring, and patch
-# only when the object would change. VM env is omitted when enable_vm is false
-# so a cluster without virtualization is not restarted for unused flags.
+# Read a live object, merge file-activity monitoring and the Lightspeed
+# endpoint, and patch only when the object would change.
 patch_stackrox_cr() {
   local kind="$1"
   local name="$2"
-  local enable_vm="$3"
-  local enable_fam="$4"
-  local lightspeed_endpoint="${5:-}"
+  local enable_fam="$3"
+  local lightspeed_endpoint="${4:-}"
   local result
   result="$(
     oc get "$kind" "$name" -n "${ACS_NS}" -o json | \
-      ENABLE_VM="${enable_vm}" ENABLE_FAM="${enable_fam}" LIGHTSPEED_ENDPOINT="${lightspeed_endpoint}" python3 -c '
+      ENABLE_FAM="${enable_fam}" LIGHTSPEED_ENDPOINT="${lightspeed_endpoint}" python3 -c '
 import json, os, sys
 doc = json.load(sys.stdin)
 spec = doc.setdefault("spec", {})
@@ -144,9 +135,6 @@ patch = {"spec": {}}
 changed = False
 
 updates = {}
-if os.environ.get("ENABLE_VM") == "true":
-    updates["ROX_VIRTUAL_MACHINES"] = "true"
-    updates["ROX_VIRTUAL_MACHINES_SCRAPER_POLL_INTERVAL"] = "1m"
 endpoint = os.environ.get("LIGHTSPEED_ENDPOINT", "")
 if endpoint:
     updates["ROX_LIGHTSPEED_ENDPOINT"] = endpoint
@@ -218,229 +206,6 @@ spec:
   isDefault: false
 EOF
   info "File activity monitoring: Enabled"
-}
-
-vsock_already_enabled() {
-  oc get kubevirt -n openshift-cnv -o json 2>/dev/null | python3 -c '
-import json, sys
-doc = json.load(sys.stdin)
-for item in doc.get("items", []):
-    gates = (((item.get("spec") or {}).get("configuration") or {}).get("developerConfiguration") or {}).get("featureGates") or []
-    if "VSOCK" in gates:
-        sys.exit(0)
-sys.exit(1)
-' >/dev/null 2>&1
-}
-
-enable_vsock() {
-  if ! oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv >/dev/null 2>&1; then
-    return 1
-  fi
-  if vsock_already_enabled; then
-    info "OpenShift Virtualization already has VSOCK enabled."
-    return 0
-  fi
-  local status
-  status="$(
-    oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv -o json | python3 -c '
-import json, sys
-doc = json.load(sys.stdin)
-current = ((doc.get("metadata") or {}).get("annotations") or {}).get("kubevirt.kubevirt.io/jsonpatch", "")
-op = {"op": "add", "path": "/spec/configuration/developerConfiguration/featureGates/-", "value": "VSOCK"}
-if "VSOCK" in current:
-    print("already")
-    sys.exit(0)
-if current.strip():
-    try:
-        data = json.loads(current)
-    except json.JSONDecodeError:
-        print("unparsed")
-        sys.exit(0)
-    if not isinstance(data, list):
-        print("unparsed")
-        sys.exit(0)
-    data.append(op)
-else:
-    data = [op]
-print("patch")
-json.dump({"metadata": {"annotations": {"kubevirt.kubevirt.io/jsonpatch": json.dumps(data)}}}, sys.stdout)
-'
-  )"
-  case "${status}" in
-    already)
-      info "OpenShift Virtualization already has a VSOCK feature-gate patch."
-      return 0
-      ;;
-    unparsed)
-      warn "HyperConverged has a jsonpatch annotation this script will not overwrite. VSOCK was not changed."
-      return 0
-      ;;
-    patch*)
-      printf '%s' "${status#patch}" | merge_patch hyperconverged kubevirt-hyperconverged -n openshift-cnv
-      info "Enabled the VSOCK feature gate on OpenShift Virtualization."
-      ;;
-    *)
-      warn "Could not update the OpenShift Virtualization VSOCK feature gate."
-      ;;
-  esac
-}
-
-find_rhel9_datasource() {
-  local raw
-  raw="$(oc get datasource -A -o json 2>/dev/null || true)"
-  [[ -n "${raw}" ]] || return 0
-  printf '%s' "${raw}" | python3 -c '
-import json, sys
-doc = json.load(sys.stdin)
-items = doc.get("items", [])
-preferred = []
-fallback = []
-for item in items:
-    name = item["metadata"]["name"]
-    ns = item["metadata"]["namespace"]
-    lowered = name.lower()
-    if "rhel10" in lowered or "rhel-10" in lowered:
-        continue
-    if lowered == "rhel9" and ns == "openshift-virtualization-os-images":
-        preferred.append((ns, name))
-    elif "rhel9" in lowered or "rhel-9" in lowered:
-        fallback.append((ns, name))
-choice = preferred[0] if preferred else (fallback[0] if fallback else None)
-if choice:
-    print(choice[0] + " " + choice[1])
-'
-}
-
-create_scan_vm() {
-  local ds_ns="$1"
-  local ds_name="$2"
-  if oc get vm "${ACS_VM_NAME}" -n "${ACS_VM_NAMESPACE}" >/dev/null 2>&1; then
-    info "Virtual machine: ${ACS_VM_NAME} already exists in ${ACS_VM_NAMESPACE} (login ${ACS_VM_USER} / ${ACS_VM_PASSWORD})"
-    return 0
-  fi
-  oc apply -f - <<EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${ACS_VM_NAMESPACE}
-EOF
-  DS_NS="${ds_ns}" DS_NAME="${ds_name}" \
-    VM_NAMESPACE="${ACS_VM_NAMESPACE}" VM_NAME="${ACS_VM_NAME}" \
-    VM_USER="${ACS_VM_USER}" VM_PASSWORD="${ACS_VM_PASSWORD}" \
-    python3 - <<'PY' | oc apply -f -
-import json, os, sys
-user_data = """#cloud-config
-users:
-  - name: %s
-    groups: wheel
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    lock_passwd: false
-    shell: /bin/bash
-    plain_text_passwd: %s
-chpasswd:
-  expire: false
-ssh_pwauth: true
-write_files:
-  - path: /etc/systemd/system/roxagent.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=RHACS roxagent
-      After=network-online.target
-
-      [Service]
-      ExecStart=/usr/local/bin/roxagent serve --port 818
-      Restart=always
-
-      [Install]
-      WantedBy=multi-user.target
-runcmd:
-  - curl -fsSL -o /usr/local/bin/roxagent %s
-  - chmod 0755 /usr/local/bin/roxagent
-  - restorecon -v /usr/local/bin/roxagent || true
-  - systemctl daemon-reload
-  - systemctl enable --now roxagent.service
-  - dnf install -y curl || true
-""" % (os.environ["VM_USER"], os.environ["VM_PASSWORD"], os.environ["ROXAGENT_URL"])
-vm = {
-    "apiVersion": "kubevirt.io/v1",
-    "kind": "VirtualMachine",
-    "metadata": {
-        "name": os.environ["VM_NAME"],
-        "namespace": os.environ["VM_NAMESPACE"],
-        "labels": {"app": os.environ["VM_NAME"]},
-    },
-    "spec": {
-        "dataVolumeTemplates": [{
-            "metadata": {"name": os.environ["VM_NAME"] + "-volume"},
-            "spec": {
-                "sourceRef": {
-                    "kind": "DataSource",
-                    "name": os.environ["DS_NAME"],
-                    "namespace": os.environ["DS_NS"],
-                },
-                "storage": {
-                    "accessModes": ["ReadWriteOnce"],
-                    "resources": {"requests": {"storage": "30Gi"}},
-                },
-            },
-        }],
-        "runStrategy": "Always",
-        "template": {
-            "metadata": {
-                "labels": {
-                    "kubevirt.io/domain": os.environ["VM_NAME"],
-                    "app": os.environ["VM_NAME"],
-                }
-            },
-            "spec": {
-                "architecture": "amd64",
-                "domain": {
-                    "cpu": {"cores": 2, "sockets": 1, "threads": 1},
-                    "memory": {"guest": "2Gi"},
-                    "devices": {
-                        "autoattachVSOCK": True,
-                        "disks": [
-                            {"name": "rootdisk", "bootOrder": 1, "disk": {"bus": "virtio"}},
-                            {"name": "cloudinitdisk", "disk": {"bus": "virtio"}},
-                        ],
-                        "interfaces": [{"name": "default", "masquerade": {}, "model": "virtio"}],
-                        "rng": {},
-                    },
-                    "features": {"acpi": {}, "smm": {"enabled": True}},
-                    "firmware": {"bootloader": {"efi": {}}},
-                    "resources": {},
-                },
-                "networks": [{"name": "default", "pod": {}}],
-                "volumes": [
-                    {"name": "rootdisk", "dataVolume": {"name": os.environ["VM_NAME"] + "-volume"}},
-                    {"name": "cloudinitdisk", "cloudInitNoCloud": {"userData": user_data}},
-                ],
-            },
-        },
-    },
-}
-json.dump(vm, sys.stdout)
-PY
-  VM_CREATED=true
-  info "Virtual machine: ${ACS_VM_NAME} in ${ACS_VM_NAMESPACE} (login ${ACS_VM_USER} / ${ACS_VM_PASSWORD})"
-  info "Disk import and cloud-init can take several minutes before roxagent is listening."
-}
-
-configure_vm_scanning() {
-  if ! oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv >/dev/null 2>&1; then
-    info "Virtual machine: skipped (OpenShift Virtualization is not installed)"
-    return 0
-  fi
-  ENABLE_VM=true
-  enable_vsock || true
-  local ds
-  ds="$(find_rhel9_datasource || true)"
-  if [[ -z "${ds}" ]]; then
-    info "Virtual machine: skipped (no RHEL 9 DataSource found). VM scanning flags are still enabled."
-    return 0
-  fi
-  create_scan_vm "${ds%% *}" "${ds#* }"
 }
 
 central_route_host() {
@@ -812,9 +577,12 @@ subjects:
 EOF
 
   app_name="$(oc get deploy lightspeed-app-server -n "${ns}" -o jsonpath='{.spec.selector.matchLabels.app\.kubernetes\.io/name}' 2>/dev/null || true)"
-  app_name="${app_name:-lightspeed-service-api}"
-  # Ingress rules are additive. Repeating the console, router, and monitoring
-  # peers keeps those clients allowed when this policy is the one selecting the pods.
+  if [[ -z "${app_name}" ]]; then
+    app_name="$(oc get svc lightspeed-app-server -n "${ns}" -o jsonpath='{.spec.selector.app\.kubernetes\.io/name}' 2>/dev/null || true)"
+  fi
+  app_name="${app_name:-lightspeed-app-server}"
+  # RHACS 5.0 requires a policy that admits only Central. Other clients stay
+  # on the network policy the Lightspeed operator already created.
   oc apply -f - >/dev/null <<EOF
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -838,40 +606,6 @@ spec:
           podSelector:
             matchLabels:
               app: central
-      ports:
-        - protocol: TCP
-          port: ${port}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: openshift-console
-          podSelector:
-            matchLabels:
-              app: console
-      ports:
-        - protocol: TCP
-          port: ${port}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              network.openshift.io/policy-group: ingress
-      ports:
-        - protocol: TCP
-          port: ${port}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: openshift-monitoring
-          podSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - prometheus
-              - key: prometheus
-                operator: In
-                values:
-                  - k8s
       ports:
         - protocol: TCP
           port: ${port}
@@ -906,16 +640,12 @@ main() {
   require_tools
   deploy_workloads
   detect_acs
-  configure_vm_scanning
   configure_lightspeed_risk_enrichment
   info "Updating Central and Sensor..."
-  patch_stackrox_cr central "${CENTRAL_NAME}" "${ENABLE_VM}" false "${RISK_ENRICHMENT_ENDPOINT}"
-  patch_stackrox_cr securedcluster "${SECURED_NAME}" "${ENABLE_VM}" true
+  patch_stackrox_cr central "${CENTRAL_NAME}" false "${RISK_ENRICHMENT_ENDPOINT}"
+  patch_stackrox_cr securedcluster "${SECURED_NAME}" true
   apply_fam_policy
   configure_mcp_and_lightspeed
-  if [[ "${VM_CREATED}" == true ]]; then
-    info "Virtual machine ${ACS_VM_NAME} is importing. roxagent starts after cloud-init finishes."
-  fi
 }
 
 main "$@"
