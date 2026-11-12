@@ -17,7 +17,7 @@ git clone https://github.com/mfosterrox/demo-applications.git && cd demo-applica
 
 ## ACS module setup
 
-The OpenShift Ops Day ACS module runs `scripts/setup-acs-module.sh` after cloning this repository. The script deploys that module's workloads and configures file activity monitoring, virtual machine scanning, and the ACS MCP server for OpenShift Lightspeed. It does not enable init-container evaluation. Run it again after Lightspeed has an `OLSConfig` if the first run skipped that wiring.
+The OpenShift Ops Day ACS module runs `scripts/setup-acs-module.sh` after cloning this repository. The script deploys that module's workloads and configures file activity monitoring, virtual machine scanning, the ACS MCP server for OpenShift Lightspeed, and Lightspeed-assisted risk enrichment. It does not enable init-container evaluation. Run it again after Lightspeed has an `OLSConfig` if the first run skipped that wiring.
 
 ```bash
 ./scripts/setup-acs-module.sh

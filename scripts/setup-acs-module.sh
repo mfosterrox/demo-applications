@@ -7,12 +7,13 @@
 #   - file activity monitoring and a deployment file-activity policy
 #   - virtual machine scanning (VSOCK, Central/Sensor env, a RHEL 9 guest)
 #   - the ACS MCP server, and Lightspeed wiring when OLSConfig already exists
+#   - Lightspeed-assisted risk enrichment when the Lightspeed API is ready
 #
 # Does not enable init-container policy evaluation.
 #
 # Re-run after the Lightspeed module if the first run reports that OLSConfig
-# was missing. Workloads and RHACS settings that are already in place are left
-# alone.
+# or the Lightspeed API was missing. Workloads and RHACS settings that are
+# already in place are left alone.
 #
 # Usage (from a bastion that is already logged in with oc):
 #   ./scripts/setup-acs-module.sh
@@ -41,6 +42,8 @@ SECURED_NAME=""
 ENABLE_VM=false
 VM_CREATED=false
 LIGHTSPEED_STATUS=""
+# Set when lightspeed-app-server is reachable. Empty leaves Central unchanged.
+RISK_ENRICHMENT_ENDPOINT=""
 
 info() { printf '%s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
@@ -129,21 +132,25 @@ patch_stackrox_cr() {
   local name="$2"
   local enable_vm="$3"
   local enable_fam="$4"
+  local lightspeed_endpoint="${5:-}"
   local result
   result="$(
     oc get "$kind" "$name" -n "${ACS_NS}" -o json | \
-      ENABLE_VM="${enable_vm}" ENABLE_FAM="${enable_fam}" python3 -c '
+      ENABLE_VM="${enable_vm}" ENABLE_FAM="${enable_fam}" LIGHTSPEED_ENDPOINT="${lightspeed_endpoint}" python3 -c '
 import json, os, sys
 doc = json.load(sys.stdin)
 spec = doc.setdefault("spec", {})
 patch = {"spec": {}}
 changed = False
 
+updates = {}
 if os.environ.get("ENABLE_VM") == "true":
-    updates = {
-        "ROX_VIRTUAL_MACHINES": "true",
-        "ROX_VIRTUAL_MACHINES_SCRAPER_POLL_INTERVAL": "1m",
-    }
+    updates["ROX_VIRTUAL_MACHINES"] = "true"
+    updates["ROX_VIRTUAL_MACHINES_SCRAPER_POLL_INTERVAL"] = "1m"
+endpoint = os.environ.get("LIGHTSPEED_ENDPOINT", "")
+if endpoint:
+    updates["ROX_LIGHTSPEED_ENDPOINT"] = endpoint
+if updates:
     customize = spec.get("customize") or {}
     env = list(customize.get("envVars") or [])
     by_name = {item.get("name"): item for item in env if isinstance(item, dict)}
@@ -763,6 +770,115 @@ json.dump({"spec": {"featureGates": gates, "mcpServers": servers}}, sys.stdout)
   info "${LIGHTSPEED_STATUS}"
 }
 
+configure_lightspeed_risk_enrichment() {
+  local role="lightspeed-operator-query-access"
+  local binding="central-lightspeed-query-access"
+  local policy="allow-rhacs-central-lightspeed"
+  local ns="${LIGHTSPEED_NAMESPACE}"
+  local sa port app_name
+  if ! oc get clusterrole "${role}" >/dev/null 2>&1; then
+    info "Lightspeed risk enrichment: skipped (OpenShift Lightspeed is not installed). Re-run this script after the Lightspeed module."
+    return 0
+  fi
+  if ! oc get svc lightspeed-app-server -n "${ns}" >/dev/null 2>&1; then
+    info "Lightspeed risk enrichment: skipped (lightspeed-app-server is not ready). Re-run this script after the Lightspeed module."
+    return 0
+  fi
+  port="$(oc get svc lightspeed-app-server -n "${ns}" -o jsonpath='{.spec.ports[?(@.port==8443)].port}' 2>/dev/null || true)"
+  if [[ -z "${port}" ]]; then
+    port="$(oc get svc lightspeed-app-server -n "${ns}" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || true)"
+  fi
+  port="${port:-8443}"
+  RISK_ENRICHMENT_ENDPOINT="https://lightspeed-app-server.${ns}.svc:${port}"
+
+  sa="$(oc get deploy central -n "${ACS_NS}" -o jsonpath='{.spec.template.spec.serviceAccountName}' 2>/dev/null || true)"
+  sa="${sa:-central}"
+  oc apply -f - >/dev/null <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ${binding}
+  labels:
+    app.kubernetes.io/part-of: lightspeed-operator
+    app.kubernetes.io/component: rhacs-risk-enrichment
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ${role}
+subjects:
+  - kind: ServiceAccount
+    name: ${sa}
+    namespace: ${ACS_NS}
+EOF
+
+  app_name="$(oc get deploy lightspeed-app-server -n "${ns}" -o jsonpath='{.spec.selector.matchLabels.app\.kubernetes\.io/name}' 2>/dev/null || true)"
+  app_name="${app_name:-lightspeed-service-api}"
+  # Ingress rules are additive. Repeating the console, router, and monitoring
+  # peers keeps those clients allowed when this policy is the one selecting the pods.
+  oc apply -f - >/dev/null <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ${policy}
+  namespace: ${ns}
+  labels:
+    app.kubernetes.io/part-of: lightspeed-operator
+    app.kubernetes.io/component: rhacs-risk-enrichment
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ${app_name}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ${ACS_NS}
+          podSelector:
+            matchLabels:
+              app: central
+      ports:
+        - protocol: TCP
+          port: ${port}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-console
+          podSelector:
+            matchLabels:
+              app: console
+      ports:
+        - protocol: TCP
+          port: ${port}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: ${port}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - prometheus
+              - key: prometheus
+                operator: In
+                values:
+                  - k8s
+      ports:
+        - protocol: TCP
+          port: ${port}
+EOF
+  info "Lightspeed risk enrichment: enabled"
+}
+
 configure_mcp_and_lightspeed() {
   local host
   host="$(central_route_host || true)"
@@ -791,8 +907,9 @@ main() {
   deploy_workloads
   detect_acs
   configure_vm_scanning
+  configure_lightspeed_risk_enrichment
   info "Updating Central and Sensor..."
-  patch_stackrox_cr central "${CENTRAL_NAME}" "${ENABLE_VM}" false
+  patch_stackrox_cr central "${CENTRAL_NAME}" "${ENABLE_VM}" false "${RISK_ENRICHMENT_ENDPOINT}"
   patch_stackrox_cr securedcluster "${SECURED_NAME}" "${ENABLE_VM}" true
   apply_fam_policy
   configure_mcp_and_lightspeed
