@@ -15,6 +15,14 @@ Clone the repository and deploy all applications in one command:
 git clone https://github.com/mfosterrox/demo-applications.git && cd demo-applications && kubectl apply -R -f k8s-deployment-manifests/
 ```
 
+## ACS module setup
+
+The OpenShift Ops Day ACS module runs `scripts/setup-acs-module.sh` after cloning this repository. The script deploys that module's workloads and configures file activity monitoring, virtual machine scanning, and the ACS MCP server for OpenShift Lightspeed. It does not enable init-container evaluation. Run it again after Lightspeed has an `OLSConfig` if the first run skipped that wiring.
+
+```bash
+./scripts/setup-acs-module.sh
+```
+
 ## Quick Start - Deploy All Applications
 
 Deploy all namespaces first, then all application manifests:
@@ -116,6 +124,7 @@ k8s-deployment-manifests/
 └── webgoat/              # WebGoat manifests
 vulnmgmt/                 # Opt-in RHACS shop demo (not under k8s-deployment-manifests)
 scripts/
+├── setup-acs-module.sh                        # OpenShift Ops Day ACS module setup
 ├── medical-application-netflow-flows.sh       # Shared -connect flow definitions
 ├── generate-medical-application-traffic.sh  # Exec into pods; dial -connect targets
 ├── verify-medical-application-network.sh    # Post-deploy pod-to-pod flow check
