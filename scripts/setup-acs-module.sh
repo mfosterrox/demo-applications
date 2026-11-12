@@ -30,8 +30,10 @@ readonly MCP_NAMESPACE="rhacs-mcp"
 readonly MCP_DEPLOYMENT="stackrox-mcp"
 readonly LIGHTSPEED_NAMESPACE="openshift-lightspeed"
 readonly LIGHTSPEED_SECRET="acs-mcp-api-token"
-readonly TOKEN_NAME="ols-mcp-integration"
-readonly ROXAGENT_URL="https://mirror.openshift.com/pub/rhacs/assets/4.11.6/bin/linux/roxagent"
+# Exported because the Python helpers read them from the environment.
+# A prefix assignment (NAME="${NAME}" cmd) fails when the variable is readonly.
+declare -rx TOKEN_NAME="ols-mcp-integration"
+declare -rx ROXAGENT_URL="https://mirror.openshift.com/pub/rhacs/assets/4.11.6/bin/linux/roxagent"
 
 ACS_NS=""
 CENTRAL_NAME=""
@@ -318,7 +320,6 @@ EOF
   DS_NS="${ds_ns}" DS_NAME="${ds_name}" \
     VM_NAMESPACE="${ACS_VM_NAMESPACE}" VM_NAME="${ACS_VM_NAME}" \
     VM_USER="${ACS_VM_USER}" VM_PASSWORD="${ACS_VM_PASSWORD}" \
-    ROXAGENT_URL="${ROXAGENT_URL}" \
     python3 - <<'PY' | oc apply -f -
 import json, os, sys
 user_data = """#cloud-config
@@ -489,7 +490,7 @@ generate_api_token() {
   local token_file="$2"
   local password
   password="$(read_admin_password)" || return 1
-  PASSWORD="${password}" CENTRAL_HOST="${host}" TOKEN_NAME="${TOKEN_NAME}" TOKEN_PATH="${token_file}" \
+  PASSWORD="${password}" CENTRAL_HOST="${host}" TOKEN_PATH="${token_file}" \
     python3 - <<'PY'
 import base64, json, os, ssl, sys, urllib.request
 password = os.environ["PASSWORD"]
