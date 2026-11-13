@@ -304,7 +304,12 @@ PY
 
 deploy_mcp() {
   local token_file="$1"
-  local central_url="https://central.${ACS_NS}.svc:443"
+  # stackrox-mcp dials this as a gRPC target and appends its own default
+  # port, so a value with a URL scheme and explicit port (e.g.
+  # "https://central.stackrox.svc:443") becomes
+  # "https://central.stackrox.svc:443:443" ("too many colons in address").
+  # It must be a bare host:port, no scheme.
+  local central_url="central.${ACS_NS}.svc:443"
   oc apply -f - <<EOF
 apiVersion: v1
 kind: Namespace
