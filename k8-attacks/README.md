@@ -33,53 +33,60 @@ This directory contains scripts that simulate various Kubernetes attack scenario
    - Usage: `./struts-cve-2024-53677-attack.sh [upload_endpoint] [destination_path] [command]`
    - Example: `./struts-cve-2024-53677-attack.sh /upload.action ../../../../../usr/local/tomcat/webapps/ROOT/shell.jsp "id"`
 
+6. **nodejs-rce-attack.sh** - Node.js command-injection RCE against nodejs-goof
+   - Posts the app's existing markdown image payload to `POST /create`
+   - `child_process.exec("identify " + url)` spawns a shell from the Node process
+   - Runs `apt-get --version` so RHACS "Ubuntu Package Manager Execution" fires
+   - Usage: `./nodejs-rce-attack.sh [namespace] [service]`
+   - Example: `NODEJS_GOOF_URL=https://nodejs-goof-vuln-main.apps.example.com ./nodejs-rce-attack.sh`
+
 ### Kubernetes-Specific Attacks
 
-6. **privilege-escalation-attack.sh** - Container privilege escalation attempts
+7. **privilege-escalation-attack.sh** - Container privilege escalation attempts
    - Attempts to gain root access
    - Tries to modify security contexts
    - Accesses sensitive files (/etc/shadow)
    - Usage: `./privilege-escalation-attack.sh [namespace] [pod-name]`
 
-7. **service-account-token-theft.sh** - Service account token theft and lateral movement
+8. **service-account-token-theft.sh** - Service account token theft and lateral movement
    - Extracts service account tokens from pods
    - Uses stolen tokens for unauthorized API access
    - Attempts lateral movement between namespaces
    - Usage: `./service-account-token-theft.sh [source-namespace] [target-namespace]`
 
-8. **secret-enumeration-attack.sh** - Kubernetes secret enumeration
+9. **secret-enumeration-attack.sh** - Kubernetes secret enumeration
    - Lists and accesses secrets in a namespace
    - Attempts to read service account tokens, TLS certificates, and image pull secrets
    - Tries to access secrets from within pods
    - Usage: `./secret-enumeration-attack.sh [namespace]`
 
-9. **network-scanning-attack.sh** - Internal network scanning and reconnaissance
+10. **network-scanning-attack.sh** - Internal network scanning and reconnaissance
    - Scans Kubernetes service IPs
    - Performs DNS enumeration
    - Attempts to access Kubernetes API server and etcd
    - Port scans common Kubernetes ports
    - Usage: `./network-scanning-attack.sh [source-namespace] [target-namespace]`
 
-10. **rbac-privilege-escalation.sh** - RBAC privilege escalation attempts
+11. **rbac-privilege-escalation.sh** - RBAC privilege escalation attempts
    - Attempts to create cluster-admin role bindings
    - Tries to modify existing role bindings
    - Attempts to access cluster-scoped resources
    - Usage: `./rbac-privilege-escalation.sh [namespace]`
 
-11. **resource-exhaustion-attack.sh** - Resource exhaustion (DoS) attack
+12. **resource-exhaustion-attack.sh** - Resource exhaustion (DoS) attack
     - Creates many resource-intensive pods
     - Attempts to exhaust CPU, memory, and storage
     - Simulates denial of service attack
     - Usage: `./resource-exhaustion-attack.sh [namespace] [number-of-pods]`
 
-12. **configmap-enumeration-attack.sh** - ConfigMap enumeration and access
+13. **configmap-enumeration-attack.sh** - ConfigMap enumeration and access
     - Lists all ConfigMaps in a namespace
     - Attempts to read ConfigMap contents
     - Tries to access mounted ConfigMaps from pods
     - Attempts to create/modify ConfigMaps
     - Usage: `./configmap-enumeration-attack.sh [namespace]`
 
-13. **container-escape-attack.sh** - Container escape attempts
+14. **container-escape-attack.sh** - Container escape attempts
     - Checks for privileged containers
     - Attempts to access host filesystem
     - Tries to access Docker/CRI sockets
@@ -130,6 +137,9 @@ These attacks are designed to trigger alerts in:
 
 # Run Struts file upload exploit
 ./struts-cve-2024-53677-attack.sh /upload.action ../../../../../usr/local/tomcat/webapps/ROOT/shell.jsp "whoami"
+
+# Run the Node.js command-injection simulation against nodejs-goof
+./nodejs-rce-attack.sh
 ```
 
 ## Security Note
