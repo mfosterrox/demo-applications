@@ -31,7 +31,7 @@ spec:
       containers:
         - name: shop-web
           image: quay.io/mfoster/shop-web:1.0.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: ["sleep", "infinity"]
           securityContext:
             allowPrivilegeEscalation: false

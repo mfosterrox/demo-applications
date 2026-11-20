@@ -65,7 +65,8 @@ maybe_build() {
   if bash "${REUSE_SH}" skip-build "${image}" "${dockerfile}"; then
     return 0
   fi
-  "${CONTAINER_CMD}" build --platform "${PLATFORM}" -t "${image}" "$@"
+  # never: a locally rebuilt base must not be replaced by the older registry tag
+  "${CONTAINER_CMD}" build --pull=never --platform "${PLATFORM}" -t "${image}" "$@"
 }
 
 build_images() {
@@ -79,6 +80,7 @@ build_images() {
     image-builds/base-eap8
 
   maybe_build "${BASE_EAP8_REPACKED}" image-builds/base-eap8-repacked/Containerfile \
+    --build-arg "BASE_IMAGE=${BASE_OPENJDK}" \
     -f image-builds/base-eap8-repacked/Containerfile \
     image-builds/base-eap8-repacked
 

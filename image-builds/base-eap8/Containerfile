@@ -1,4 +1,7 @@
 FROM registry.redhat.io/amq-streams/kafka-38-rhel9:2.8.0
 LABEL org.opencontainers.image.title="Demo Base: AMQ Streams Kafka (Red Hat product with content manifests)"
 LABEL org.opencontainers.image.version="1.0"
+# LABEL does not add a content layer. This file makes the platform base longer than
+# the Red Hat image it is built from, so RHACS can separate those layers.
+COPY platform-release.txt /etc/demo-platform-release
 CMD ["sleep", "infinity"]

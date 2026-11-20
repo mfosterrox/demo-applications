@@ -3,4 +3,7 @@ FROM --platform=linux/amd64 ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="Shop Web"
 ARG APP_VERSION=1.0.0
 LABEL org.opencontainers.image.version="${APP_VERSION}"
+# RHACS matches a base image only when this image has more content layers than the base.
+# LABEL and CMD are empty layers, so copy a real file.
+COPY index.html /opt/shop-web/index.html
 CMD ["sleep", "infinity"]

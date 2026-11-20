@@ -26,7 +26,7 @@ spec:
       containers:
         - name: eap8-repacked
           image: quay.io/mfoster/base-eap8-repacked:1.0
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: ["sleep", "infinity"]
           securityContext:
             allowPrivilegeEscalation: false
